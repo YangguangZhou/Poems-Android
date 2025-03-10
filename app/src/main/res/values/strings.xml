@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">诗词</string>
+    <string name="title_home">首页</string>
+    <string name="title_favorite">收藏</string>
+    <string name="title_search">搜索</string>
+    <string name="title_poem_detail">诗词详情</string>
+    <string name="search_hint">搜索诗词、作者、朝代</string>
+    <string name="error_loading">加载失败，请重试</string>
+    <string name="retry">重试</string>
+    <string name="no_poems_found">未找到诗词</string>
+    <string name="no_favorites">暂无收藏的诗词</string>
+    <string name="share">分享</string>
+    <string name="copy">复制</string>
+    <string name="copied_to_clipboard">已复制到剪贴板</string>
+    <string name="loading">加载中...</string>
+    <string name="app_title">诗词</string>
+    <string name="search">搜索</string>
+    <string name="filter">筛选</string>
+    <string name="random_poem">随机阅读</string>
+    <string name="no_poems_available">没有可用的诗词</string>
+    <string name="pull_to_refresh">下拉刷新获取诗词</string>
+    <string name="favorite">收藏</string>
+</resources>

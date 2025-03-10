@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 翻译文本内边距 -->
+    <dimen name="translation_padding_horizontal">12dp</dimen>
+    <dimen name="translation_padding_vertical">6dp</dimen>
+</resources>
