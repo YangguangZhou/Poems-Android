@@ -367,9 +367,8 @@ class PoemDetailFragment : Fragment() {
     private fun sharePoem() {
         currentPoem?.let { poem ->
             val shareText = buildString {
-                append("《${poem.title}》\n")
-                append("${poem.author}\n\n")
-                append(poem.content.joinToString("\n"))
+                append("https://poems.jerryz.com.cn/")
+                append(poem.title)
             }
 
             val intent = Intent(Intent.ACTION_SEND).apply {

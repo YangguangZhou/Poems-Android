@@ -12,4 +12,9 @@
         android:id="@+id/searchFragment"
         android:icon="@drawable/ic_search"
         android:title="@string/title_search" />
+
+    <item
+        android:id="@+id/aboutFragment"
+        android:icon="@drawable/ic_about"
+        android:title="@string/title_about" />
 </menu>

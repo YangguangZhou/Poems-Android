@@ -8,6 +8,7 @@ import android.window.OnBackInvokedDispatcher
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.navigation.fragment.NavHostFragment
@@ -43,6 +44,12 @@ class MainActivity : AppCompatActivity() {
 
         // 将底部导航栏与导航控制器关联
         binding.bottomNavigation.setupWithNavController(navController)
+        //在Activity的onCreate()方法中调用
+        WindowCompat.setDecorFitsSystemWindows(window, false);
+
+        //设置导航栏为透明
+        window.setNavigationBarColor(Color.TRANSPARENT);
+        window.setStatusBarColor(Color.TRANSPARENT);
 
         // 添加预见式返回手势支持
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+

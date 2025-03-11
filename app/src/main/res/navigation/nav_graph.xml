@@ -36,6 +36,13 @@
     </fragment>
 
     <fragment
+        android:id="@+id/aboutFragment"
+        android:name="com.jerryz.poems.ui.about.AboutFragment"
+        android:label="@string/title_search"
+        tools:layout="@layout/fragment_about">
+    </fragment>
+
+    <fragment
         android:id="@+id/poemDetailFragment"
         android:name="com.jerryz.poems.ui.detail.PoemDetailFragment"
         android:label="@string/title_poem_detail"
