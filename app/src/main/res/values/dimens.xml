@@ -5,4 +5,7 @@
     <dimen name="translation_padding_vertical">6dp</dimen>
     <!-- FAB 外边距 -->
     <dimen name="fab_margin">16dp</dimen>
+    <dimen name="popup_elevation">8dp</dimen>
+    <dimen name="popup_vertical_offset">8dp</dimen>
+    <dimen name="popup_extra_vertical_offset">1dp</dimen>
 </resources>

@@ -5,19 +5,26 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
 import android.os.Bundle
-import android.text.SpannableString
+import android.os.Handler
+import android.os.Looper
 import android.text.Spannable
+import android.text.SpannableString
 import android.text.style.LeadingMarginSpan
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -34,13 +41,18 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import com.github.stuxuhai.jpinyin.PinyinFormat
 import com.google.android.material.color.MaterialColors
 import com.jerryz.poems.R
 import com.jerryz.poems.data.Poem
 import com.jerryz.poems.data.PoemRepository
 import com.jerryz.poems.databinding.FragmentPoemDetailBinding
 import com.google.android.material.snackbar.Snackbar
+import com.github.stuxuhai.jpinyin.PinyinHelper
+import com.google.android.material.card.MaterialCardView
 import kotlinx.coroutines.launch
+import androidx.preference.PreferenceManager
+import androidx.core.content.ContextCompat
 
 // PoemDetailViewModelFactory 定义
 class PoemDetailViewModelFactory(
@@ -65,6 +77,12 @@ class PoemDetailFragment : Fragment() {
     private lateinit var viewModel: PoemDetailViewModel
     private var currentPoem: Poem? = null
     private var showTranslations = false
+
+    // 拼音弹窗
+    private var pinyinPopupWindow: PopupWindow? = null
+
+    // 是否已显示过拼音提示
+    private var hasShownPinyinGuide = false
 
     private val onBackPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
@@ -116,6 +134,10 @@ class PoemDetailFragment : Fragment() {
             }
         }
 
+        // 检查是否已显示过拼音提示
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        hasShownPinyinGuide = prefs.getBoolean("has_shown_pinyin_guide", false)
+
         // 加载指定ID的诗词
         viewModel.loadPoem(args.poemId)
 
@@ -129,6 +151,11 @@ class PoemDetailFragment : Fragment() {
 
                 // 设置 CollapsingToolbarLayout 标题
                 binding.collapsingToolbar.title = poem.title
+
+                // 如果是第一次显示，展示拼音引导提示
+                if (!hasShownPinyinGuide) {
+                    showPinyinGuide()
+                }
             } else {
                 Log.e("PoemDetailFragment", "无法显示诗词，数据为空")
                 Snackbar.make(
@@ -188,6 +215,18 @@ class PoemDetailFragment : Fragment() {
         applyEdgeToEdgeContent()
     }
 
+    private fun showPinyinGuide() {
+        Snackbar.make(
+            binding.root,
+            "提示：点击诗句中的单字可查看拼字形字音（仅供参考）",
+            Snackbar.LENGTH_LONG
+        ).setAction("我知道了") {
+            // 标记已显示过提示
+            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            prefs.edit().putBoolean("has_shown_pinyin_guide", true).apply()
+            hasShownPinyinGuide = true
+        }.setAnchorView(binding.fabFavorite).show()
+    }
 
     private fun applyEdgeToEdgeContent() {
         // 确保内容不被状态栏遮挡
@@ -287,32 +326,17 @@ class PoemDetailFragment : Fragment() {
                 }
             }
 
-            // 创建诗句文本视图
-            val contentTextView = TextView(requireContext()).apply {
+            // 创建诗句文本视图 - 使用字符级点击处理
+            val contentTextView = InteractiveTextView(requireContext()).apply {
                 setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyLarge)
                 setLineSpacing(0f, 1.5f)
 
-                // 应用字体大小
-                textSize = currentTextSize
+                // 设置文本和调整文本大小
+                setText(poem.content[i], isSpecialFormat, currentTextSize)
 
-                if (isSpecialFormat) {
-                    // 词或文言文使用左对齐
-                    textAlignment = View.TEXT_ALIGNMENT_TEXT_START
-
-                    // 应用首行缩进（两个中文字符）
-                    val spannableString = SpannableString(poem.content[i])
-                    // 计算缩进大小（大约两个中文字符宽度）
-                    val indentSize = (textSize * 2).toInt()
-                    spannableString.setSpan(
-                        LeadingMarginSpan.Standard(indentSize, 0),
-                        0, spannableString.length,
-                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                    text = spannableString
-                } else {
-                    // 默认使用居中对齐
-                    textAlignment = View.TEXT_ALIGNMENT_CENTER
-                    text = poem.content[i]
+                // 设置点击监听，显示单字拼音
+                setOnCharacterTouchListener { char, x, y, charBounds ->
+                    showSingleCharPinyin(char.toString(), this, x, y)
                 }
             }
             lineContainer.addView(contentTextView)
@@ -367,6 +391,99 @@ class PoemDetailFragment : Fragment() {
             }
 
             binding.containerPoemContent.addView(lineContainer)
+        }
+    }
+
+    private fun showSingleCharPinyin(character: String, anchorView: View, x: Float, y: Float) {
+        // 关闭之前的拼音弹窗
+        pinyinPopupWindow?.dismiss()
+
+        // 将单个汉字转换为拼音
+        val pinyin = if (character.trim().isNotEmpty()) {
+            try {
+                PinyinHelper.convertToPinyinString(character, "", PinyinFormat.WITH_TONE_MARK).trim()
+            } catch (e: Exception) {
+                // 如果转换出错，比如标点符号等，就显示原字符
+                character
+            }
+        } else {
+            character
+        }
+
+        // 创建弹窗视图
+        val popupView = LayoutInflater.from(requireContext()).inflate(R.layout.popup_pinyin, null)
+        val cardView = popupView.findViewById<MaterialCardView>(R.id.cardViewPinyin)
+        val textViewCharacter = popupView.findViewById<TextView>(R.id.textViewCharacter)
+        val textViewPinyin = popupView.findViewById<TextView>(R.id.textViewPinyin)
+
+        // 设置原字符和拼音文本
+        textViewCharacter.text = character
+        textViewPinyin.text = pinyin
+
+        // 设置文本颜色
+        val textColor = MaterialColors.getColor(
+            requireContext(),
+            com.google.android.material.R.attr.colorOnSurface,
+            Color.BLACK
+        )
+        textViewCharacter.setTextColor(textColor)
+        textViewPinyin.setTextColor(textColor)
+
+        // 设置卡片背景颜色
+        val backgroundColor = MaterialColors.getColor(
+            requireContext(),
+            com.google.android.material.R.attr.colorSurface,
+            Color.WHITE
+        )
+        cardView.setCardBackgroundColor(backgroundColor)
+
+        // 测量视图大小
+        popupView.measure(
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+
+        // 创建并显示弹窗
+        pinyinPopupWindow = PopupWindow(
+            popupView,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true // 设置为可获取焦点，使其能够接收触摸事件
+        ).apply {
+            elevation = resources.getDimension(R.dimen.popup_elevation)
+
+            // 设置点击外部区域关闭弹窗
+            setOnDismissListener {
+                pinyinPopupWindow = null
+            }
+
+            // 获取弹窗大小
+            val popupWidth = popupView.measuredWidth
+            val popupHeight = popupView.measuredHeight
+
+            // 显示在点击位置的上方 - 考虑到屏幕边界
+            val screenWidth = resources.displayMetrics.widthPixels
+
+            // 计算x坐标，确保弹窗不会超出屏幕边界
+            var xPosition = x - popupWidth / 2
+            if (xPosition < 0) xPosition = 0f
+            if (xPosition + popupWidth > screenWidth) xPosition = screenWidth - popupWidth.toFloat()
+
+            // 计算y坐标，确保弹窗显示在字符上方，增加更大的垂直偏移
+            val extraOffset = resources.getDimensionPixelSize(R.dimen.popup_extra_vertical_offset)
+            val yPosition = y - popupHeight - resources.getDimensionPixelSize(R.dimen.popup_vertical_offset) - extraOffset
+
+            // 在anchorView上显示弹窗
+            val location = IntArray(2)
+            anchorView.getLocationOnScreen(location)
+
+            // 设置最终位置
+            showAtLocation(
+                anchorView,
+                android.view.Gravity.NO_GRAVITY,
+                (location[0] + xPosition).toInt(),
+                (location[1] + yPosition).toInt()
+            )
         }
     }
 
@@ -441,11 +558,215 @@ class PoemDetailFragment : Fragment() {
         // 移除自定义返回处理
         onBackPressedCallback.remove()
 
+        // 关闭拼音弹窗
+        pinyinPopupWindow?.dismiss()
+        pinyinPopupWindow = null
+
         val window = requireActivity().window
 
-        window.navigationBarColor = Color.TRANSPARENT;
+        window.navigationBarColor = Color.TRANSPARENT
         window.statusBarColor = Color.TRANSPARENT
 
         _binding = null
+    }
+
+    /**
+     * 交互式文本视图，支持单个字符的点击和视觉反馈
+     */
+    private inner class InteractiveTextView(context: Context) : androidx.appcompat.widget.AppCompatTextView(context) {
+
+        // 存储每个字符的边界矩形
+        private val charRects = mutableListOf<RectF>()
+        // 原始文本内容
+        private var originalText = ""
+        // 当前点击的字符索引
+        private var touchedCharIndex = -1
+        // 触摸反馈动画计时
+        private val handler = Handler(Looper.getMainLooper())
+        // 字符触摸监听器
+        private var characterTouchListener: ((Char, Float, Float, RectF) -> Unit)? = null
+
+        // 背景颜色
+        private val rippleColor = MaterialColors.getColor(
+            context,
+            com.google.android.material.R.attr.colorControlHighlight,
+            ContextCompat.getColor(context, android.R.color.darker_gray)
+        )
+
+        // 绘制用的画笔
+        private val backgroundPaint = Paint().apply {
+            isAntiAlias = true
+            color = rippleColor
+            alpha = 0 // 初始透明
+        }
+
+        init {
+            // 确保能接收触摸事件
+            isClickable = true
+            isFocusable = true
+        }
+
+        /**
+         * 设置文本内容，同时处理特殊格式
+         */
+        fun setText(text: String, isSpecialFormat: Boolean, textSizeValue: Float) {
+            originalText = text
+            textSize = textSizeValue
+
+            if (isSpecialFormat) {
+                // 词或文言文使用左对齐
+                textAlignment = View.TEXT_ALIGNMENT_TEXT_START
+                // 同时设置 gravity 以便 layout 计算时生效
+                gravity = android.view.Gravity.START
+                // 应用首行缩进
+                val spannableString = SpannableString(text)
+                val indentSize = (textSize * 2).toInt()
+                spannableString.setSpan(
+                    LeadingMarginSpan.Standard(indentSize, 0),
+                    0, spannableString.length,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                this.text = spannableString
+            } else {
+                // 默认使用居中对齐
+                textAlignment = View.TEXT_ALIGNMENT_CENTER
+                gravity = android.view.Gravity.CENTER_HORIZONTAL
+                this.text = text
+            }
+
+            // 重新计算字符边界，在布局完成后调用
+            post { calculateCharacterBounds() }
+        }
+
+        /**
+         * 设置字符触摸监听器
+         */
+        fun setOnCharacterTouchListener(listener: (Char, Float, Float, RectF) -> Unit) {
+            characterTouchListener = listener
+        }
+
+        /**
+         * 计算每个字符的边界，优先使用 Layout 信息，确保位置与实际绘制一致
+         */
+        private fun calculateCharacterBounds() {
+            charRects.clear()
+
+            if (originalText.isEmpty()) return
+
+            val layout = layout
+            if (layout != null && layout.lineCount > 0) {
+                // 假设该 TextView 显示单行文本
+                val line = 0
+                val lineTop = layout.getLineTop(line)
+                val lineBottom = layout.getLineBottom(line)
+                for (i in originalText.indices) {
+                    val startX = layout.getPrimaryHorizontal(i)
+                    // 对于最后一个字符，通过测量文本宽度补偿
+                    val endX = if (i < originalText.length - 1)
+                        layout.getPrimaryHorizontal(i + 1)
+                    else
+                        startX + paint.measureText(originalText.substring(i))
+                    val padding = textSize * 0.15f
+                    val rect = RectF(
+                        startX - padding,
+                        lineTop - padding,
+                        endX + padding,
+                        lineBottom + padding
+                    )
+                    charRects.add(rect)
+                }
+            } else {
+                // 若 layout 未就绪，采用简易算法计算起始位置，使用 gravity 来判断对齐方式
+                val textWidth = paint.measureText(originalText)
+                val contentWidth = width - paddingLeft - paddingRight
+                val startX = when (gravity and android.view.Gravity.HORIZONTAL_GRAVITY_MASK) {
+                    android.view.Gravity.CENTER_HORIZONTAL -> paddingLeft + (contentWidth - textWidth) / 2f
+                    android.view.Gravity.END, android.view.Gravity.RIGHT -> paddingLeft + contentWidth - textWidth
+                    else -> paddingLeft.toFloat()
+                }
+                var currentX = startX
+                for (i in originalText.indices) {
+                    val char = originalText[i]
+                    val charWidth = paint.measureText(char.toString())
+                    val padding = textSize * 0.15f
+                    val top = paddingTop.toFloat()
+                    val bottom = top + textSize
+                    val rect = RectF(
+                        currentX - padding,
+                        top - padding,
+                        currentX + charWidth + padding,
+                        bottom + padding
+                    )
+                    charRects.add(rect)
+                    currentX += charWidth
+                }
+            }
+        }
+
+        override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+            super.onSizeChanged(w, h, oldw, oldh)
+            // 大小变化时重新计算字符边界
+            post { calculateCharacterBounds() }
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            if (touchedCharIndex >= 0 && touchedCharIndex < charRects.size) {
+                // 复制原始区域，避免直接修改
+                val rect = RectF(charRects[touchedCharIndex])
+                // 调整 inset 值，可以根据需要调整，比如这里用 textSize * 0.1f
+                val inset = textSize * 0.1f
+                rect.inset(inset, inset)
+                // 绘制缩小后的点击反馈区域
+                canvas.drawRoundRect(rect, textSize * 0.2f, textSize * 0.2f, backgroundPaint)
+            }
+        }
+
+
+        override fun onTouchEvent(event: MotionEvent): Boolean {
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    val touchX = event.x
+                    val touchY = event.y
+
+                    touchedCharIndex = -1
+
+                    for (i in charRects.indices) {
+                        val rect = charRects[i]
+                        if (rect.contains(touchX, touchY)) {
+                            touchedCharIndex = i
+                            backgroundPaint.alpha = 80
+                            invalidate()
+                            return true
+                        }
+                    }
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    if (touchedCharIndex >= 0 && touchedCharIndex < originalText.length) {
+                        val char = originalText[touchedCharIndex]
+                        val rect = charRects[touchedCharIndex]
+                        characterTouchListener?.invoke(
+                            char,
+                            rect.centerX(),
+                            rect.top, // 使用顶部位置，使弹窗显示在字符上方
+                            rect
+                        )
+                        handler.postDelayed({
+                            backgroundPaint.alpha = 0
+                            invalidate()
+                        }, 100)
+                    }
+                    return true
+                }
+
+                MotionEvent.ACTION_CANCEL -> {
+                    backgroundPaint.alpha = 0
+                    invalidate()
+                    touchedCharIndex = -1
+                }
+            }
+            return super.onTouchEvent(event)
+        }
     }
 }
