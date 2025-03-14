@@ -646,26 +646,27 @@ class PoemDetailFragment : Fragment() {
         }
 
         /**
-         * 计算每个字符的边界，优先使用 Layout 信息，确保位置与实际绘制一致
+         * 计算每个字符的边界，支持多行文本
          */
         private fun calculateCharacterBounds() {
             charRects.clear()
-
             if (originalText.isEmpty()) return
 
             val layout = layout
             if (layout != null && layout.lineCount > 0) {
-                // 假设该 TextView 显示单行文本
-                val line = 0
-                val lineTop = layout.getLineTop(line)
-                val lineBottom = layout.getLineBottom(line)
                 for (i in originalText.indices) {
+                    // 获取当前字符所在的行号
+                    val line = layout.getLineForOffset(i)
+                    val lineTop = layout.getLineTop(line)
+                    val lineBottom = layout.getLineBottom(line)
+                    // 当前字符起始位置
                     val startX = layout.getPrimaryHorizontal(i)
-                    // 对于最后一个字符，通过测量文本宽度补偿
-                    val endX = if (i < originalText.length - 1)
+                    // 如果下一个字符在同一行，使用其位置；否则使用本行的右边界
+                    val endX = if (i < originalText.length - 1 && layout.getLineForOffset(i + 1) == line)
                         layout.getPrimaryHorizontal(i + 1)
                     else
-                        startX + paint.measureText(originalText.substring(i))
+                        layout.getLineRight(line)
+                    // 为了更容易点击，加一些 padding
                     val padding = textSize * 0.15f
                     val rect = RectF(
                         startX - padding,
@@ -676,7 +677,7 @@ class PoemDetailFragment : Fragment() {
                     charRects.add(rect)
                 }
             } else {
-                // 若 layout 未就绪，采用简易算法计算起始位置，使用 gravity 来判断对齐方式
+                // 若 layout 不可用，仍使用简单算法计算（可能仅适用于单行）
                 val textWidth = paint.measureText(originalText)
                 val contentWidth = width - paddingLeft - paddingRight
                 val startX = when (gravity and android.view.Gravity.HORIZONTAL_GRAVITY_MASK) {
@@ -702,6 +703,7 @@ class PoemDetailFragment : Fragment() {
                 }
             }
         }
+
 
         override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
             super.onSizeChanged(w, h, oldw, oldh)
