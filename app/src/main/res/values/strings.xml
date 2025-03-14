@@ -42,4 +42,6 @@
     <string name="error_opening_qq">打开 QQ 失败</string>
     <string name="email_copied">邮箱已复制到剪贴板</string>
     <string name="qq_copied">QQ号已复制到剪贴板</string>
+    <string name="fullscreen">全屏</string>
+    <string name="exit_fullscreen">退出全屏</string>
 </resources>

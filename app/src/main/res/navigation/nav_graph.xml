@@ -38,7 +38,7 @@
     <fragment
         android:id="@+id/aboutFragment"
         android:name="com.jerryz.poems.ui.about.AboutFragment"
-        android:label="@string/title_search"
+        android:label="@string/title_about"
         tools:layout="@layout/fragment_about">
     </fragment>
 
@@ -50,5 +50,26 @@
         <argument
             android:name="poemId"
             app:argType="integer" />
+        <!-- 添加返回到顶层导航的动作 -->
+        <action
+            android:id="@+id/action_poemDetailFragment_to_homeFragment"
+            app:destination="@id/homeFragment"
+            app:popUpTo="@id/homeFragment"
+            app:popUpToInclusive="false" />
+        <action
+            android:id="@+id/action_poemDetailFragment_to_favoriteFragment"
+            app:destination="@id/favoriteFragment"
+            app:popUpTo="@id/favoriteFragment"
+            app:popUpToInclusive="false" />
+        <action
+            android:id="@+id/action_poemDetailFragment_to_searchFragment"
+            app:destination="@id/searchFragment"
+            app:popUpTo="@id/searchFragment"
+            app:popUpToInclusive="false" />
+        <action
+            android:id="@+id/action_poemDetailFragment_to_aboutFragment"
+            app:destination="@id/aboutFragment"
+            app:popUpTo="@id/aboutFragment"
+            app:popUpToInclusive="false" />
     </fragment>
 </navigation>

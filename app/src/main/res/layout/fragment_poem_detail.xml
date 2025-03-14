@@ -4,22 +4,21 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
-    android:fitsSystemWindows="true">
+    android:background="?attr/colorSurface">
+    <!-- 移除了fitsSystemWindows="true"属性以支持全屏显示 -->
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fitsSystemWindows="true"
         android:background="?attr/colorSurface"
         app:liftOnScroll="true">
+        <!-- 移除fitsSystemWindows属性，改由代码动态设置padding -->
 
         <com.google.android.material.appbar.CollapsingToolbarLayout
             android:id="@+id/collapsingToolbar"
             android:layout_width="match_parent"
             android:layout_height="60dp"
-            android:fitsSystemWindows="true"
             app:collapsedTitleTextAppearance="@style/TextAppearance.Material3.TitleLarge"
             app:contentScrim="@android:color/transparent"
             app:expandedTitleGravity="bottom|start"
@@ -193,7 +192,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
+        android:layout_margin="@dimen/fab_margin"
         android:contentDescription="收藏"
         android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
         app:icon="@drawable/ic_favorite_outline"

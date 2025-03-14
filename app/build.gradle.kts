@@ -11,9 +11,9 @@ android {
     defaultConfig {
         applicationId = "com.jerryz.poems"
         minSdk = 31
-        targetSdk = 34
-        versionCode = 101
-        versionName = "1.0.1"
+        targetSdk = 35
+        versionCode = 102
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -51,13 +51,13 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
     implementation(libs.androidx.swiperefreshlayout)
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
-    implementation("androidx.recyclerview:recyclerview:1.3.2")
-    implementation("androidx.activity:activity-compose:1.8.2")
-    implementation("androidx.compose.material3:material3:1.2.1")
-    implementation("androidx.compose.runtime:runtime:1.6.1")
-    implementation("com.github.bumptech.glide:glide:4.16.0")
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
+    implementation("androidx.activity:activity-compose:1.10.1")
+    implementation(libs.androidx.material3)
+    implementation("androidx.compose.runtime:runtime:1.7.8")
+    implementation(libs.glide)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

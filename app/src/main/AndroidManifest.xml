@@ -15,7 +15,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Poems"
         android:enableOnBackInvokedCallback="true"
-        tools:targetApi="34">
+        tools:targetApi="35">
         <meta-data
             android:name="android.supports_themedicon"
             android:value="true" />

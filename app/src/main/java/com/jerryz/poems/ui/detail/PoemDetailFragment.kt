@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.text.SpannableString
 import android.text.Spannable
@@ -18,17 +19,20 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.MenuProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.core.widget.NestedScrollView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.google.android.material.color.MaterialColors
 import com.jerryz.poems.R
@@ -37,7 +41,6 @@ import com.jerryz.poems.data.PoemRepository
 import com.jerryz.poems.databinding.FragmentPoemDetailBinding
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.launch
-import android.graphics.Color
 
 // PoemDetailViewModelFactory 定义
 class PoemDetailViewModelFactory(
@@ -63,6 +66,13 @@ class PoemDetailFragment : Fragment() {
     private var currentPoem: Poem? = null
     private var showTranslations = false
 
+    private val onBackPressedCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            // 使用Navigation组件进行返回
+            findNavController().navigateUp()
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -74,6 +84,9 @@ class PoemDetailFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        // 注册自定义返回处理
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, onBackPressedCallback)
 
         // 设置 Toolbar
         (requireActivity() as AppCompatActivity).setSupportActionBar(binding.toolbar)
@@ -170,6 +183,30 @@ class PoemDetailFragment : Fragment() {
             // 刷新诗词显示以应用新字体大小
             currentPoem?.let { displayPoemContent(it) }
         }
+
+        // 应用边缘到边缘的内容布局
+        applyEdgeToEdgeContent()
+    }
+
+
+    private fun applyEdgeToEdgeContent() {
+        // 确保内容不被状态栏遮挡
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+
+            // 为AppBar添加顶部内边距，避免被状态栏遮挡
+            binding.appBarLayout.updatePadding(top = insets.top)
+
+            // 确保底部内容不被导航栏遮挡
+            binding.nestedScrollView.updatePadding(bottom = insets.bottom)
+
+            // 调整FAB的位置，避免被导航栏遮挡
+            (binding.fabFavorite.layoutParams as ViewGroup.MarginLayoutParams).apply {
+                bottomMargin = insets.bottom + resources.getDimensionPixelSize(R.dimen.fab_margin)
+            }
+
+            WindowInsetsCompat.CONSUMED
+        }
     }
 
     private fun setupMenu() {
@@ -182,9 +219,7 @@ class PoemDetailFragment : Fragment() {
                 return when (menuItem.itemId) {
                     android.R.id.home -> {
                         // 处理返回按钮点击
-                        requireActivity().onBackPressed() // 对于较旧版本
-                        // 或者使用
-                        // findNavController().navigateUp() // 对于使用Navigation组件的情况
+                        onBackPressedCallback.handleOnBackPressed()
                         true
                     }
                     R.id.action_share -> {
@@ -402,6 +437,15 @@ class PoemDetailFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+
+        // 移除自定义返回处理
+        onBackPressedCallback.remove()
+
+        val window = requireActivity().window
+
+        window.navigationBarColor = Color.TRANSPARENT;
+        window.statusBarColor = Color.TRANSPARENT
+
         _binding = null
     }
 }
