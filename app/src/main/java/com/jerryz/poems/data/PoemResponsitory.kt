@@ -9,15 +9,26 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.File
 import java.io.IOException
+import java.io.InputStream
 
-// 修改为单例模式
+/**
+ * 诗词数据仓库 (单例模式)
+ *
+ * 优化逻辑：
+ * 1. 首次从网络加载数据并持久化到本地文件。
+ * 2. 后续优先从本地文件加载，实现离线访问和快速启动。
+ * 3. 提供强制刷新功能，用于下拉刷新等场景。
+ */
 class PoemRepository private constructor(private val context: Context) {
 
-    // 单例实现
     companion object {
         @Volatile
         private var INSTANCE: PoemRepository? = null
+
+        // 文件名常量
+        private const val POEMS_FILE_NAME = "poems_data.txt"
 
         fun getInstance(context: Context): PoemRepository {
             return INSTANCE ?: synchronized(this) {
@@ -28,6 +39,7 @@ class PoemRepository private constructor(private val context: Context) {
         }
     }
 
+    // LiveData 用于观察数据变化
     private val _poems = MutableLiveData<List<Poem>>()
     val poems: LiveData<List<Poem>> = _poems
 
@@ -37,142 +49,171 @@ class PoemRepository private constructor(private val context: Context) {
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
+    // 网络和解析工具
     private val client = OkHttpClient()
     private val parser = PoemParser()
 
-    // 缓存已加载的诗词，提高性能
+    // 内存缓存，提高访问性能
     private var poemsCache: List<Poem> = emptyList()
 
     init {
-        Log.d("PoemRepository", "Repository实例已创建")
-        // 初始化时不调用loadFavorites，因为_poems还是空的
+        Log.d("PoemRepository", "Repository instance created.")
     }
 
     /**
-     * 从网络加载诗词数据
+     * 加载诗词数据。
+     * 优先从本地文件加载，如果文件不存在或强制刷新，则从网络获取。
+     * @param forceRefresh 是否强制从网络刷新数据，默认为 false。
      */
-    suspend fun loadPoems(url: String = "https://poems.jerryz.com.cn/poems.txt") {
-        _isLoading.value = true
-        _error.value = null
+    suspend fun loadPoems(forceRefresh: Boolean = false) {
+        _isLoading.postValue(true)
+        _error.postValue(null)
 
-        try {
-            withContext(Dispatchers.IO) {
-                val request = Request.Builder()
-                    .url(url)
-                    .build()
+        withContext(Dispatchers.IO) {
+            // 如果不强制刷新，并且数据已在内存中，则直接使用内存缓存
+            if (!forceRefresh && poemsCache.isNotEmpty()) {
+                Log.d("PoemRepository", "Data already in memory cache. Skipping load.")
+                _isLoading.postValue(false)
+                return@withContext
+            }
 
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        throw IOException("网络请求失败: ${response.code}")
+            // 如果不强制刷新，尝试从本地文件加载
+            val localFile = File(context.filesDir, POEMS_FILE_NAME)
+            if (!forceRefresh && localFile.exists()) {
+                Log.d("PoemRepository", "Loading poems from local file.")
+                try {
+                    localFile.inputStream().use { inputStream ->
+                        processAndUpdatePoems(inputStream)
                     }
-
-                    response.body?.byteStream()?.let { inputStream ->
-                        val poemsList = parser.parsePoems(inputStream)
-                        Log.d("PoemRepository", "成功加载 ${poemsList.size} 首诗词")
-
-                        // 打印几首诗词的ID和内容样本以便调试
-                        if (poemsList.isNotEmpty()) {
-                            val samplePoem = poemsList.first()
-                            Log.d("PoemRepository", "样本诗词: ID=${samplePoem.id}, 标题=${samplePoem.title}, 内容行数=${samplePoem.content.size}")
-                        }
-
-                        // 应用收藏状态
-                        val favoritesSet = getFavoriteIds()
-                        val poemsWithFavorites = poemsList.map { poem ->
-                            poem.copy(isFavorite = favoritesSet.contains(poem.id.toString()))
-                        }
-
-                        // 更新缓存
-                        poemsCache = poemsWithFavorites
-
-                        withContext(Dispatchers.Main) {
-                            _poems.value = poemsWithFavorites
-                            Log.d("PoemRepository", "诗词数据已更新到LiveData")
-                        }
-                    } ?: throw IOException("响应体为空")
+                } catch (e: Exception) {
+                    Log.e("PoemRepository", "Failed to load from local file, will try network.", e)
+                    // 如果本地加载失败，则尝试从网络加载
+                    fetchFromNetwork()
                 }
-            }
-        } catch (e: Exception) {
-            Log.e("PoemRepository", "加载诗词失败", e)
-            withContext(Dispatchers.Main) {
-                _error.value = "加载失败: ${e.localizedMessage}"
-            }
-        } finally {
-            withContext(Dispatchers.Main) {
-                _isLoading.value = false
+            } else {
+                // 如果需要强制刷新或本地文件不存在，则从网络加载
+                Log.d("PoemRepository", "Fetching poems from network. ForceRefresh: $forceRefresh")
+                fetchFromNetwork()
             }
         }
     }
+
+    /**
+     * 从网络获取数据，并保存到本地文件。
+     */
+    private suspend fun fetchFromNetwork(url: String = "https://poems.jerryz.com.cn/poems.txt") {
+        try {
+            val request = Request.Builder().url(url).build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw IOException("Network request failed: ${response.code}")
+                }
+
+                val responseBody = response.body ?: throw IOException("Response body is null")
+
+                // 将网络数据流保存到本地文件
+                val file = File(context.filesDir, POEMS_FILE_NAME)
+                responseBody.byteStream().use { inputStream ->
+                    file.outputStream().use { fileOutputStream ->
+                        inputStream.copyTo(fileOutputStream)
+                    }
+                }
+                Log.d("PoemRepository", "Poems saved to local file: ${file.absolutePath}")
+
+                // 从新保存的文件中读取并处理数据
+                file.inputStream().use { savedInputStream ->
+                    processAndUpdatePoems(savedInputStream)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("PoemRepository", "Failed to load poems from network", e)
+            _error.postValue("加载失败: ${e.localizedMessage}")
+        } finally {
+            _isLoading.postValue(false)
+        }
+    }
+
+    /**
+     * 从输入流解析诗词，应用收藏状态，并更新 LiveData 和缓存。
+     * @param inputStream 包含诗词数据的输入流。
+     */
+    private suspend fun processAndUpdatePoems(inputStream: InputStream) {
+        val poemsList = parser.parsePoems(inputStream)
+        Log.d("PoemRepository", "Successfully parsed ${poemsList.size} poems.")
+
+        // 应用收藏状态
+        val favoritesSet = getFavoriteIds()
+        val poemsWithFavorites = poemsList.map { poem ->
+            poem.copy(isFavorite = favoritesSet.contains(poem.id.toString()))
+        }
+
+        // 更新内存缓存
+        poemsCache = poemsWithFavorites
+
+        // 切换到主线程更新 LiveData
+        withContext(Dispatchers.Main) {
+            _poems.value = poemsWithFavorites
+            _isLoading.value = false
+            Log.d("PoemRepository", "Poems data updated to LiveData.")
+        }
+    }
+
 
     /**
      * 直接通过ID获取诗词 - 添加此方法便于直接访问
      */
     fun getPoemById(id: Int): Poem? {
-        Log.d("PoemRepository", "通过ID获取诗词: $id")
-
-        // 先从缓存中查找
-        val cachedPoem = poemsCache.find { it.id == id }
-        if (cachedPoem != null) {
-            Log.d("PoemRepository", "在缓存中找到诗词: ${cachedPoem.title}")
-            return cachedPoem
-        }
-
-        // 如果缓存中没有，从LiveData获取
-        val poems = _poems.value
-        val poem = poems?.find { it.id == id }
-
-        if (poem != null) {
-            Log.d("PoemRepository", "在LiveData中找到诗词: ${poem.title}")
-        } else {
-            Log.d("PoemRepository", "未找到ID为$id 的诗词")
-        }
-
-        return poem
+        Log.d("PoemRepository", "Getting poem by ID: $id")
+        // 优先从内存缓存中查找
+        return poemsCache.find { it.id == id }
     }
 
     /**
      * 搜索诗词
      */
     fun searchPoems(query: String): List<Poem> {
+        if (query.isBlank()) return emptyList()
         val normalizedQuery = query.trim().lowercase()
-        return _poems.value?.filter { poem ->
+        // 从内存缓存中搜索
+        return poemsCache.filter { poem ->
             poem.title.lowercase().contains(normalizedQuery) ||
                     poem.author.lowercase().contains(normalizedQuery) ||
                     poem.content.any { it.lowercase().contains(normalizedQuery) } ||
                     poem.tags.any { it.lowercase().contains(normalizedQuery) } ||
                     poem.translation.any { it.lowercase().contains(normalizedQuery) }
-        } ?: emptyList()
+        }
     }
 
     /**
      * 获取收藏的诗词
      */
     fun getFavoritePoems(): List<Poem> {
-        return _poems.value?.filter { it.isFavorite } ?: emptyList()
+        // 从内存缓存中过滤
+        return poemsCache.filter { it.isFavorite }
     }
 
     /**
      * 更新诗词收藏状态
      */
     fun toggleFavorite(poemId: Int) {
-        val currentPoems = _poems.value?.toMutableList() ?: return
-        val index = currentPoems.indexOfFirst { it.id == poemId }
+        val index = poemsCache.indexOfFirst { it.id == poemId }
 
         if (index != -1) {
-            val poem = currentPoems[index]
+            val poem = poemsCache[index]
             val newFavoriteStatus = !poem.isFavorite
-            currentPoems[index] = poem.copy(isFavorite = newFavoriteStatus)
+            val updatedPoem = poem.copy(isFavorite = newFavoriteStatus)
 
-            // 更新缓存
-            poemsCache = currentPoems.toList()
+            // 更新内存缓存
+            val mutableCache = poemsCache.toMutableList()
+            mutableCache[index] = updatedPoem
+            poemsCache = mutableCache.toList()
 
             // 更新LiveData
-            _poems.value = currentPoems
+            _poems.postValue(poemsCache)
 
-            // 更新SharedPreferences
+            // 持久化收藏状态
             saveFavoriteStatus(poemId.toString(), newFavoriteStatus)
-
-            Log.d("PoemRepository", "已更新收藏状态: ID=$poemId, 收藏=${newFavoriteStatus}")
+            Log.d("PoemRepository", "Toggled favorite status: ID=$poemId, isFavorite=$newFavoriteStatus")
         }
     }
 
@@ -181,9 +222,7 @@ class PoemRepository private constructor(private val context: Context) {
      */
     private fun getFavoriteIds(): Set<String> {
         val sharedPrefs = context.getSharedPreferences("PoemPrefs", Context.MODE_PRIVATE)
-        val favorites = sharedPrefs.getStringSet("favorites", emptySet()) ?: emptySet()
-        Log.d("PoemRepository", "获取收藏ID列表: $favorites")
-        return favorites
+        return sharedPrefs.getStringSet("favorites", emptySet()) ?: emptySet()
     }
 
     /**
@@ -200,13 +239,12 @@ class PoemRepository private constructor(private val context: Context) {
         }
 
         sharedPrefs.edit().putStringSet("favorites", favorites).apply()
-        Log.d("PoemRepository", "已保存收藏状态: ID=$poemId, 收藏=$isFavorite")
     }
 
     /**
      * 检查是否已加载数据
      */
     fun isDataLoaded(): Boolean {
-        return _poems.value?.isNotEmpty() == true
+        return poemsCache.isNotEmpty()
     }
 }

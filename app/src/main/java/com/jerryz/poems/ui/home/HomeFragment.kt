@@ -2,15 +2,9 @@ package com.jerryz.poems.ui.home
 
 import android.os.Bundle
 import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -40,8 +34,8 @@ class HomeViewModel(private val repository: PoemRepository) : ViewModel() {
     val isLoading = repository.isLoading
     val error = repository.error
 
-    suspend fun loadPoems() {
-        repository.loadPoems()
+    suspend fun loadPoems(forceRefresh: Boolean = false) {
+        repository.loadPoems(forceRefresh)
     }
 
     fun getRandomPoem(): Poem? {
@@ -88,6 +82,11 @@ class HomeFragment : Fragment() {
             loadPoems()
         }
 
+        // 设置刷新按钮
+        binding.fabRefresh.setOnClickListener {
+            loadPoems(true)
+        }
+
         // 设置随机阅读诗词
         binding.fabRandom.setOnClickListener {
             val randomPoem = viewModel.getRandomPoem()
@@ -105,14 +104,16 @@ class HomeFragment : Fragment() {
         // 观察数据变化
         viewModel.poems.observe(viewLifecycleOwner) { poems ->
             adapter.submitList(poems)
-            updateUi(poems.isEmpty())
+            updateUi(poems.isEmpty() && viewModel.error.value == null)
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.visibility = if (isLoading && viewModel.poems.value.isNullOrEmpty()) {
-                View.VISIBLE
-            } else {
-                View.GONE
+            // 只要在加载，就显示进度条
+            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+            if(isLoading) {
+                // 加载时隐藏空状态和错误状态
+                binding.emptyView.visibility = View.GONE
+                binding.errorCard.visibility = View.GONE
             }
         }
 
@@ -122,6 +123,8 @@ class HomeFragment : Fragment() {
                     // 如果没有数据且有错误，则显示错误卡片
                     binding.errorCard.visibility = View.VISIBLE
                     binding.textError.text = error
+                    binding.recyclerView.visibility = View.GONE
+                    binding.emptyView.visibility = View.GONE
                 } else {
                     // 如果有数据，则显示Snackbar
                     Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG)
@@ -134,24 +137,26 @@ class HomeFragment : Fragment() {
         }
 
         // 加载诗词
-        if (viewModel.poems.value.isNullOrEmpty()) {
+        if (!repository.isDataLoaded()) {
             loadPoems()
         }
     }
 
-    private fun loadPoems() {
-        binding.errorCard.visibility = View.GONE
+    private fun loadPoems(forceRefresh: Boolean = false) {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.loadPoems()
+            viewModel.loadPoems(forceRefresh)
+            // 刷新成功后，如果没有错误，则显示提示
+            if (forceRefresh && viewModel.error.value == null) {
+                Snackbar.make(binding.root, R.string.refresh_successful, Snackbar.LENGTH_SHORT)
+                    .setAnchorView(binding.fabRandom)
+                    .show()
+            }
         }
     }
 
-    private fun updateUi(isEmpty: Boolean) {
-        binding.recyclerView.visibility = if (!isEmpty) {
-            View.VISIBLE
-        } else {
-            View.GONE
-        }
+    private fun updateUi(showEmpty: Boolean) {
+        binding.recyclerView.visibility = if (!showEmpty) View.VISIBLE else View.GONE
+        binding.emptyView.visibility = if (showEmpty) View.VISIBLE else View.GONE
     }
 
     private fun navigateToPoemDetail(poem: Poem) {

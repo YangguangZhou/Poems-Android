@@ -39,6 +39,15 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        // 根据你已有的 activity-compose 版本，强制所有 activity 库使用 1.10.1
+        force("androidx.activity:activity:1.10.1")
+        force("androidx.activity:activity-ktx:1.10.1")
+    }
+}
+
+
 
 dependencies {
     implementation(libs.androidx.core.ktx)
@@ -53,11 +62,11 @@ dependencies {
     implementation(libs.androidx.swiperefreshlayout)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation("androidx.recyclerview:recyclerview:1.4.0")
+    implementation(libs.androidx.recyclerview)
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation(libs.androidx.material3)
-    implementation("androidx.compose.runtime:runtime:1.7.8")
-    implementation("com.github.stuxuhai:jpinyin:1.1.7")
+    implementation(libs.androidx.runtime)
+    implementation(libs.jpinyin)
     implementation(libs.glide)
     implementation(libs.androidx.preference.ktx)
     testImplementation(libs.junit)

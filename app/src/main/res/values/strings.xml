@@ -44,4 +44,6 @@
     <string name="qq_copied">QQ号已复制到剪贴板</string>
     <string name="fullscreen">全屏</string>
     <string name="exit_fullscreen">退出全屏</string>
+    <string name="refresh">刷新</string>
+    <string name="refresh_successful">刷新成功</string>
 </resources>
