@@ -295,7 +295,25 @@ class PoemDetailFragment : Fragment() {
         tags.forEach { tag ->
             val chip = com.google.android.material.chip.Chip(requireContext()).apply {
                 text = tag
+                isCheckable = false
                 isClickable = false
+                chipStrokeWidth = 0f
+
+                // 使用 Material 3 颜色，与首页/搜索页一致
+                val bg = com.google.android.material.color.MaterialColors.getColor(
+                    context,
+                    com.google.android.material.R.attr.colorSecondaryContainer,
+                    0
+                )
+                val fg = com.google.android.material.color.MaterialColors.getColor(
+                    context,
+                    com.google.android.material.R.attr.colorOnSecondaryContainer,
+                    0
+                )
+                chipBackgroundColor = android.content.res.ColorStateList.valueOf(bg)
+                setTextColor(fg)
+
+                textSize = 12f
             }
             binding.chipGroupTags.addView(chip)
         }
