@@ -68,95 +68,136 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 初始化 PoemRepository 和 ViewModel
         val repository = PoemRepository.getInstance(requireContext())
         viewModel = ViewModelProvider(this, HomeViewModelFactory(repository))
             .get(HomeViewModel::class.java)
 
-        // 初始化 RecyclerView
         adapter = PoemAdapter { poem -> navigateToPoemDetail(poem) }
         binding.recyclerView.adapter = adapter
 
-        // 设置重试按钮
-        binding.buttonRetry.setOnClickListener {
-            loadPoems()
-        }
-
-        // 设置刷新按钮
-        binding.fabRefresh.setOnClickListener {
+        binding.swipeRefreshLayout.setOnRefreshListener {
             loadPoems(true)
         }
 
-        // 设置随机阅读诗词
+        binding.buttonRetry.setOnClickListener { // In error card
+            loadPoems(true)
+        }
+
+        binding.fabRetry.setOnClickListener {
+            loadPoems(true)
+        }
+
         binding.fabRandom.setOnClickListener {
             val randomPoem = viewModel.getRandomPoem()
             if (randomPoem != null) {
                 navigateToPoemDetail(randomPoem)
             } else {
-                Snackbar.make(
-                    binding.root,
-                    R.string.no_poems_available,
-                    Snackbar.LENGTH_SHORT
-                ).show()
+                Snackbar.make(binding.root, R.string.no_poems_available, Snackbar.LENGTH_SHORT).show()
             }
         }
 
-        // 观察数据变化
         viewModel.poems.observe(viewLifecycleOwner) { poems ->
             adapter.submitList(poems)
-            updateUi(poems.isEmpty() && viewModel.error.value == null)
+            if (viewModel.isLoading.value == false) {
+                updateUiState()
+            }
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            // 只要在加载，就显示进度条
-            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-            if(isLoading) {
-                // 加载时隐藏空状态和错误状态
-                binding.emptyView.visibility = View.GONE
-                binding.errorCard.visibility = View.GONE
+            binding.swipeRefreshLayout.isRefreshing = isLoading
+            if (isLoading) {
+                // If loading starts and we don't have any poems yet, hide content views.
+                // If we DO have poems (it's a refresh), keep recyclerView visible.
+                if (viewModel.poems.value.isNullOrEmpty()) {
+                    binding.recyclerView.visibility = View.GONE
+                    binding.emptyView.visibility = View.GONE
+                    binding.errorCard.visibility = View.GONE
+                } else {
+                    // Poems exist, this is a refresh. Keep recycler visible.
+                    // Ensure other states are hidden.
+                    binding.emptyView.visibility = View.GONE
+                    binding.errorCard.visibility = View.GONE
+                }
+            } else {
+                // Loading finished. updateUiState will handle final visibility.
+                updateUiState()
             }
         }
 
         viewModel.error.observe(viewLifecycleOwner) { error ->
-            error?.let {
-                if (viewModel.poems.value.isNullOrEmpty()) {
-                    // 如果没有数据且有错误，则显示错误卡片
-                    binding.errorCard.visibility = View.VISIBLE
-                    binding.textError.text = error
-                    binding.recyclerView.visibility = View.GONE
-                    binding.emptyView.visibility = View.GONE
-                } else {
-                    // 如果有数据，则显示Snackbar
-                    Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG)
-                        .setAnchorView(binding.fabRandom)
-                        .show()
+            if (viewModel.isLoading.value == false) {
+                updateUiState()
+                // General error display, might show if poems are present and an error occurs NOT during a manual refresh.
+                // Manual refresh errors are handled in loadPoems.
+                if (error != null && !viewModel.poems.value.isNullOrEmpty() /*&& !isHandlingManualRefreshErrorCurrently ??? - complex to track */) {
+                    // Snackbar.make(binding.root, error, Snackbar.LENGTH_LONG)
+                    //     .setAnchorView(binding.fabRandom)
+                    //     .show() 
+                    // To avoid double snackbars, this general one could be more conditional
+                    // or removed if loadPoems handles all relevant error snackbars.
+                    // For now, let's keep it as is, but be mindful of potential overlap.
                 }
-            } ?: run {
-                binding.errorCard.visibility = View.GONE
             }
         }
 
-        // 加载诗词
         if (!repository.isDataLoaded()) {
             loadPoems()
+        } else {
+            updateUiState()
         }
     }
 
     private fun loadPoems(forceRefresh: Boolean = false) {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.loadPoems(forceRefresh)
-            // 刷新成功后，如果没有错误，则显示提示
-            if (forceRefresh && viewModel.error.value == null) {
-                Snackbar.make(binding.root, R.string.refresh_successful, Snackbar.LENGTH_SHORT)
-                    .setAnchorView(binding.fabRandom)
-                    .show()
+            viewModel.loadPoems(forceRefresh) // This updates isLoading, poems, error LiveData
+
+            // After viewModel.loadPoems() completes:
+            if (forceRefresh) { // Feedback specifically for manual refresh attempts
+                val currentError = viewModel.error.value
+                if (currentError != null) {
+                    // Manual refresh failed
+                    Snackbar.make(binding.root, "Refresh failed: $currentError", Snackbar.LENGTH_LONG)
+                        .setAnchorView(binding.fabRandom) // Anchor to fabRandom or fabRetry
+                        .show()
+                } else {
+                    // Manual refresh succeeded (no error)
+                    if (!viewModel.poems.value.isNullOrEmpty()) { // And there's data to show
+                        Snackbar.make(binding.root, R.string.refresh_successful, Snackbar.LENGTH_SHORT)
+                            .setAnchorView(binding.fabRandom)
+                            .show()
+                    }
+                }
             }
         }
     }
 
-    private fun updateUi(showEmpty: Boolean) {
-        binding.recyclerView.visibility = if (!showEmpty) View.VISIBLE else View.GONE
-        binding.emptyView.visibility = if (showEmpty) View.VISIBLE else View.GONE
+    private fun updateUiState() {
+        val poems = viewModel.poems.value
+        val error = viewModel.error.value
+        val isLoading = viewModel.isLoading.value ?: false
+
+        if (isLoading && viewModel.poems.value.isNullOrEmpty()) { // Only hide all if loading and truly empty initially
+             binding.recyclerView.visibility = View.GONE
+             binding.emptyView.visibility = View.GONE
+             binding.errorCard.visibility = View.GONE
+             return // Return early if actively loading initial data
+        }
+        // If not loading, or if loading but poems are present (refreshing):
+
+        if (error != null && poems.isNullOrEmpty()) {
+            binding.errorCard.visibility = View.VISIBLE
+            binding.textError.text = error
+            binding.recyclerView.visibility = View.GONE
+            binding.emptyView.visibility = View.GONE
+        } else if (poems.isNullOrEmpty()) {
+            binding.emptyView.visibility = View.VISIBLE
+            binding.recyclerView.visibility = View.GONE
+            binding.errorCard.visibility = View.GONE
+        } else {
+            binding.recyclerView.visibility = View.VISIBLE
+            binding.emptyView.visibility = View.GONE
+            binding.errorCard.visibility = View.GONE
+        }
     }
 
     private fun navigateToPoemDetail(poem: Poem) {
@@ -166,6 +207,7 @@ class HomeFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        binding.recyclerView.adapter = null
         _binding = null
     }
 }

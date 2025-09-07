@@ -185,6 +185,14 @@ class PoemRepository private constructor(private val context: Context) {
     }
 
     /**
+     * 获取所有诗词标签
+     */
+    fun getAllTags(): List<String> {
+        // 从内存缓存中提取所有标签并去重
+        return poemsCache.flatMap { it.tags }.distinct().sorted()
+    }
+
+    /**
      * 获取收藏的诗词
      */
     fun getFavoritePoems(): List<Poem> {

@@ -5,4 +5,10 @@
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">50%</item>
     </style>
+
+    <style name="Widget.App.ExtendedFloatingActionButton.Favorite" parent="Widget.Material3.ExtendedFloatingActionButton.Icon.Primary">
+        <item name="backgroundTint">@color/selector_fab_favorite_background</item>
+        <item name="iconTint">@color/selector_fab_favorite_icon_text</item>
+        <item name="android:textColor">@color/selector_fab_favorite_icon_text</item>
+    </style>
 </resources>
