@@ -4,6 +4,20 @@ plugins {
     alias(libs.plugins.androidx.navigation.safeargs)
 }
 
+val aiProperties = java.util.Properties().apply {
+    val envFile = rootProject.file("ai.env")
+    if (envFile.exists()) {
+        envFile.inputStream().use { load(it) }
+    }
+}
+
+fun String.escapeForBuildConfig(): String =
+    replace("\\", "\\\\").replace("\"", "\\\"")
+
+val aiBaseUrl = aiProperties.getProperty("AI_BASE_URL") ?: "https://one.jerryz.com.cn/v1"
+val aiApiKey = aiProperties.getProperty("AI_API_KEY") ?: ""
+val aiModel = aiProperties.getProperty("AI_MODEL") ?: "qwen3-max-preview"
+
 android {
     namespace = "com.jerryz.poems"
     compileSdk = 35
@@ -16,6 +30,9 @@ android {
         versionName = "1.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "AI_BASE_URL", "\"${aiBaseUrl.escapeForBuildConfig()}\"")
+        buildConfigField("String", "AI_API_KEY", "\"${aiApiKey.escapeForBuildConfig()}\"")
+        buildConfigField("String", "AI_MODEL", "\"${aiModel.escapeForBuildConfig()}\"")
     }
 
     buildTypes {

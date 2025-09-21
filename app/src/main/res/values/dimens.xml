@@ -5,6 +5,10 @@
     <dimen name="translation_padding_vertical">6dp</dimen>
     <!-- FAB 外边距 -->
     <dimen name="fab_margin">16dp</dimen>
+    <dimen name="fab_ai_margin_bottom">96dp</dimen>
+    <dimen name="content_bottom_extra">16dp</dimen>
+    <dimen name="bottom_sheet_corner">20dp</dimen>
+    <dimen name="chat_stream_highlight_corner">16dp</dimen>
     <dimen name="popup_elevation">8dp</dimen>
     <dimen name="popup_vertical_offset">8dp</dimen>
     <dimen name="popup_extra_vertical_offset">1dp</dimen>

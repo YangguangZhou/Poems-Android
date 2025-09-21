@@ -53,6 +53,8 @@ import com.google.android.material.card.MaterialCardView
 import kotlinx.coroutines.launch
 import androidx.preference.PreferenceManager
 import androidx.core.content.ContextCompat
+import com.google.android.material.transition.MaterialContainerTransform
+import com.jerryz.poems.ui.ai.AiChatBottomSheetFragment
 
 // PoemDetailViewModelFactory 定义
 class PoemDetailViewModelFactory(
@@ -103,6 +105,24 @@ class PoemDetailFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Shared element transform for smoother card expand transition
+        sharedElementEnterTransition = MaterialContainerTransform().apply {
+            drawingViewId = R.id.nav_host_fragment
+            duration = 300
+            scrimColor = Color.TRANSPARENT
+            setAllContainerColors(
+                MaterialColors.getColor(requireContext(), com.google.android.material.R.attr.colorSurface, Color.WHITE)
+            )
+        }
+        sharedElementReturnTransition = MaterialContainerTransform().apply {
+            drawingViewId = R.id.nav_host_fragment
+            duration = 250
+            scrimColor = Color.TRANSPARENT
+            setAllContainerColors(
+                MaterialColors.getColor(requireContext(), com.google.android.material.R.attr.colorSurface, Color.WHITE)
+            )
+        }
+
         // 注册自定义返回处理
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, onBackPressedCallback)
 
@@ -114,6 +134,9 @@ class PoemDetailFragment : Fragment() {
         binding.collapsingToolbar.title = ""
 
         Log.d("PoemDetailFragment", "onViewCreated: 参数ID为 ${args.poemId}")
+
+        // Ensure transition name matches the source card
+        ViewCompat.setTransitionName(binding.root, "poem_card_${args.poemId}")
 
         // 使用全局单例Repository
         val repository = PoemRepository.getInstance(requireContext())
@@ -173,15 +196,31 @@ class PoemDetailFragment : Fragment() {
             }
         }
 
+        // 设置 AI 按钮，打开底部聊天弹窗
+        binding.fabAi.setOnClickListener {
+            currentPoem?.let { poem ->
+                AiChatBottomSheetFragment.newInstance(
+                    poemId = poem.id,
+                    title = poem.title,
+                    author = poem.author,
+                    content = poem.content.joinToString("\n"),
+                    translation = poem.translation.joinToString("\n")
+                ).show(parentFragmentManager, "AiChatBottomSheet")
+            }
+        }
+
         // 监听滚动以收缩/展开 FAB
         binding.nestedScrollView.setOnScrollChangeListener(
             NestedScrollView.OnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
-                if (scrollY > oldScrollY && binding.fabFavorite.isExtended) {
-                    // 向下滚动时收缩
-                    binding.fabFavorite.shrink()
-                } else if (scrollY < oldScrollY && !binding.fabFavorite.isExtended && scrollY == 0) {
-                    // 滚动到顶部时展开
-                    binding.fabFavorite.extend()
+                // 向下滚动时收缩两个 FAB
+                if (scrollY > oldScrollY) {
+                    if (binding.fabFavorite.isExtended) binding.fabFavorite.shrink()
+                    if (binding.fabAi.isExtended) binding.fabAi.shrink()
+                }
+                // 滚动到顶部时展开两个 FAB
+                if (scrollY < oldScrollY && scrollY == 0) {
+                    if (!binding.fabFavorite.isExtended) binding.fabFavorite.extend()
+                    if (!binding.fabAi.isExtended) binding.fabAi.extend()
                 }
             }
         )
@@ -206,7 +245,7 @@ class PoemDetailFragment : Fragment() {
         }
 
         // 观察字体大小变化
-        viewModel.textSize.observe(viewLifecycleOwner) { newSize ->
+        viewModel.textSize.observe(viewLifecycleOwner) { _ ->
             // 刷新诗词显示以应用新字体大小
             currentPoem?.let { displayPoemContent(it) }
         }
@@ -236,15 +275,39 @@ class PoemDetailFragment : Fragment() {
             // 为AppBar添加顶部内边距，避免被状态栏遮挡
             binding.appBarLayout.updatePadding(top = insets.top)
 
-            // 确保底部内容不被导航栏遮挡
+            // 确保底部内容不被导航栏遮挡（基础值，稍后再根据 FAB 高度追加）
             binding.nestedScrollView.updatePadding(bottom = insets.bottom)
 
-            // 调整FAB的位置，避免被导航栏遮挡
+            // 调整收藏 FAB 位置，避免被导航栏遮挡
             (binding.fabFavorite.layoutParams as ViewGroup.MarginLayoutParams).apply {
                 bottomMargin = insets.bottom + resources.getDimensionPixelSize(R.dimen.fab_margin)
             }
 
+            // 调整 AI FAB 位置，位于收藏 FAB 上方并避开导航栏
+            (binding.fabAi.layoutParams as ViewGroup.MarginLayoutParams).apply {
+                bottomMargin = insets.bottom + resources.getDimensionPixelSize(R.dimen.fab_ai_margin_bottom)
+            }
+
+            // 追加底部 padding 让内容不被 FAB 遮挡
+            view.post {
+                adjustScrollBottomPadding(insets.bottom)
+            }
+
             WindowInsetsCompat.CONSUMED
+        }
+    }
+
+    private fun adjustScrollBottomPadding(insetBottom: Int) {
+        val extra = resources.getDimensionPixelSize(R.dimen.content_bottom_extra)
+        val favLp = binding.fabFavorite.layoutParams as ViewGroup.MarginLayoutParams
+        val aiLp = binding.fabAi.layoutParams as ViewGroup.MarginLayoutParams
+        val favSpace = favLp.bottomMargin + binding.fabFavorite.height
+        val aiSpace = aiLp.bottomMargin + binding.fabAi.height
+        val fabSpace = maxOf(favSpace, aiSpace)
+        val target = insetBottom + fabSpace + extra
+        val currentBottom = binding.nestedScrollView.paddingBottom
+        if (currentBottom != target && target > 0) {
+            binding.nestedScrollView.updatePadding(bottom = target)
         }
     }
 
@@ -353,7 +416,7 @@ class PoemDetailFragment : Fragment() {
                 setText(poem.content[i], isSpecialFormat, currentTextSize)
 
                 // 设置点击监听，显示单字拼音
-                setOnCharacterTouchListener { char, x, y, charBounds ->
+                setOnCharacterTouchListener { char, x, y, _ ->
                     showSingleCharPinyin(char.toString(), this, x, y)
                 }
             }
@@ -515,22 +578,18 @@ class PoemDetailFragment : Fragment() {
             // 根据状态设置文本
             text = if (isFavorite) "已收藏" else "收藏"
 
-            // 根据收藏状态更改颜色（可选）
-            if (isFavorite) {
-                backgroundTintList = ColorStateList.valueOf(
-                    MaterialColors.getColor(requireContext(), com.google.android.material.R.attr.colorTertiaryContainer, Color.TRANSPARENT)
-                )
-                iconTint = ColorStateList.valueOf(
-                    MaterialColors.getColor(requireContext(), com.google.android.material.R.attr.colorOnTertiaryContainer, Color.WHITE)
-                )
+            // 改用对比度更高的配色（深色模式下更清晰）
+            val (bgAttr, fgAttr) = if (isFavorite) {
+                // Use stronger emphasis when favorited
+                com.google.android.material.R.attr.colorPrimary to com.google.android.material.R.attr.colorOnPrimary
             } else {
-                backgroundTintList = ColorStateList.valueOf(
-                    MaterialColors.getColor(requireContext(), com.google.android.material.R.attr.colorSecondaryContainer, Color.TRANSPARENT)
-                )
-                iconTint = ColorStateList.valueOf(
-                    MaterialColors.getColor(requireContext(), com.google.android.material.R.attr.colorOnSecondaryContainer, Color.WHITE)
-                )
+                com.google.android.material.R.attr.colorSecondaryContainer to com.google.android.material.R.attr.colorOnSecondaryContainer
             }
+            val bg = MaterialColors.getColor(requireContext(), bgAttr, Color.TRANSPARENT)
+            val fg = MaterialColors.getColor(requireContext(), fgAttr, Color.WHITE)
+            backgroundTintList = ColorStateList.valueOf(bg)
+            iconTint = ColorStateList.valueOf(fg)
+            setTextColor(fg)
         }
     }
 
@@ -582,8 +641,11 @@ class PoemDetailFragment : Fragment() {
 
         val window = requireActivity().window
 
-        window.navigationBarColor = Color.TRANSPARENT
-        window.statusBarColor = Color.TRANSPARENT
+        @Suppress("DEPRECATION")
+        run {
+            window.navigationBarColor = Color.TRANSPARENT
+            window.statusBarColor = Color.TRANSPARENT
+        }
 
         _binding = null
     }

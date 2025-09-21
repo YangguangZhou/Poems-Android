@@ -187,7 +187,24 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- 使用 ExtendedFloatingActionButton 提供更好的视觉效果 -->
+    <!-- AI 功能按钮，默认展开，位于收藏按钮上方 -->
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/fab_ai"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="@dimen/fab_margin"
+        android:layout_marginBottom="@dimen/fab_ai_margin_bottom"
+        android:contentDescription="@string/ai_mode"
+        android:text="@string/ai_mode"
+        android:textColor="?attr/colorOnSecondaryContainer"
+        app:backgroundTint="?attr/colorSecondaryContainer"
+        app:icon="@drawable/ic_sparkles"
+        app:iconPadding="8dp"
+        app:iconTint="?attr/colorOnSecondaryContainer"
+        app:shapeAppearance="@style/ShapeAppearance.Material3.Corner.Medium" />
+
+    <!-- 收藏按钮，默认展开 -->
     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
         android:id="@+id/fab_favorite"
         style="@style/Widget.App.ExtendedFloatingActionButton.Favorite"
@@ -195,7 +212,8 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
-        android:contentDescription="收藏"
+        android:contentDescription="@string/favorite"
+        android:text="@string/favorite"
         app:icon="@drawable/ic_favorite_outline"
         app:iconPadding="8dp"
         app:shapeAppearance="@style/ShapeAppearance.Material3.Corner.Medium" />

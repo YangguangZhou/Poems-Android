@@ -34,6 +34,9 @@ class AboutFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        binding.aboutTopAppBar.setNavigationIcon(R.drawable.ic_arrow_back)
+        binding.aboutTopAppBar.setNavigationOnClickListener { findNavController().navigateUp() }
+
         loadAppVersion()
         loadAuthorImage()
         setupClickListeners()
@@ -58,6 +61,8 @@ class AboutFragment : Fragment() {
             .placeholder(R.drawable.author_avatar)
             .error(R.drawable.error_avatar)
             .circleCrop()
+            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+            .skipMemoryCache(false)
             .into(binding.imageAuthor)
     }
 

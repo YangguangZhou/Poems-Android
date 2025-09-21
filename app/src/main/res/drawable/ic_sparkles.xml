@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Use white fill so FAB tint recolors it -->
+    <!-- Scaled main star so its four corners touch the icon bounds -->
+    <path android:fillColor="#FFFFFFFF" android:pathData="M12,0 L16.4,12 12,24 7.6,12 12,0 Z"/>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M0,12 L12,6.7059 24,12 12,17.2941 0,12 Z"/>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M18 3.2L18.8 5 18 6.8 17.2 5 18 3.2Z"/>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M16.2 5L18 4.35 19.8 5 18 5.65 16.2 5Z"/>
+</vector>
