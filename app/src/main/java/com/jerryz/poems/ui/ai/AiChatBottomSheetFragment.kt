@@ -112,18 +112,17 @@ class AiChatBottomSheetFragment : BottomSheetDialogFragment() {
 
         binding.topAppBar.setNavigationOnClickListener { dismiss() }
 
-        // Tabs: 解读 / 默写
-        binding.tabLayout.addTab(binding.tabLayout.newTab().setText(R.string.ai_insights))
-        binding.tabLayout.addTab(binding.tabLayout.newTab().setText(R.string.ai_dictation))
+        // Toggle buttons: 解读 / 默写
         showChat(true)
 
-        binding.tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab) {
-                if (tab.position == 0) showChat(true) else showChat(false)
+        binding.toggleButtonGroup.addOnButtonCheckedListener { group, checkedId, isChecked ->
+            if (isChecked) {
+                when (checkedId) {
+                    R.id.button_insights -> showChat(true)
+                    R.id.button_dictation -> showChat(false)
+                }
             }
-            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
-            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
-        })
+        }
 
         // Dictation setup
         setupDictation()

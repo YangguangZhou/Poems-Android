@@ -4,7 +4,9 @@ plugins {
     alias(libs.plugins.androidx.navigation.safeargs)
 }
 
-val aiProperties = java.util.Properties().apply {
+import java.util.Properties
+
+val aiProperties = Properties().apply {
     val envFile = rootProject.file("ai.env")
     if (envFile.exists()) {
         envFile.inputStream().use { load(it) }
@@ -53,6 +55,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 

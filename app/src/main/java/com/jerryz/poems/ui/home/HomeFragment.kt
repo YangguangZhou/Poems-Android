@@ -75,6 +75,24 @@ class HomeFragment : Fragment() {
         adapter = PoemAdapter { poem -> navigateToPoemDetail(poem) }
         binding.recyclerView.adapter = adapter
 
+        // 添加滚动监听器以控制FAB的展开/收缩
+        binding.recyclerView.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                
+                // 向下滚动时收缩FAB
+                if (dy > 0) {
+                    if (binding.fabRetry.isExtended) binding.fabRetry.shrink()
+                    if (binding.fabRandom.isExtended) binding.fabRandom.shrink()
+                }
+                // 向上滚动时展开FAB
+                else if (dy < 0) {
+                    if (!binding.fabRetry.isExtended) binding.fabRetry.extend()
+                    if (!binding.fabRandom.isExtended) binding.fabRandom.extend()
+                }
+            }
+        })
+
         binding.swipeRefreshLayout.setOnRefreshListener {
             loadPoems(true)
         }

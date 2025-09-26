@@ -8,10 +8,12 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
+import com.jerryz.poems.R
 import com.jerryz.poems.data.Poem
 import com.jerryz.poems.data.PoemRepository
 import com.jerryz.poems.databinding.FragmentFavoriteBinding
 import com.jerryz.poems.ui.home.PoemAdapter
+import com.google.android.material.snackbar.Snackbar
 
 // FavoriteViewModel 定义
 class FavoriteViewModelFactory(private val repository: PoemRepository) : ViewModelProvider.Factory {
@@ -31,6 +33,14 @@ class FavoriteViewModel(private val repository: PoemRepository) : androidx.lifec
     
     fun loadFavoritePoems() {
         _favoritePoems.value = repository.getFavoritePoems()
+    }
+    
+    fun getRandomFavoritePoem(): Poem? {
+        val favoritePoemsList = _favoritePoems.value ?: return null
+        if (favoritePoemsList.isEmpty()) return null
+        
+        val randomIndex = java.util.Random().nextInt(favoritePoemsList.size)
+        return favoritePoemsList[randomIndex]
     }
     
     // 监听诗词数据变化，更新收藏列表
@@ -69,10 +79,36 @@ class FavoriteFragment : Fragment() {
         adapter = PoemAdapter { poem -> navigateToPoemDetail(poem) }
         binding.recyclerView.adapter = adapter
         
+        // 添加滚动监听器以控制FAB的展开/收缩
+        binding.recyclerView.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                
+                // 向下滚动时收缩FAB
+                if (dy > 0) {
+                    if (binding.fabRandom.isExtended) binding.fabRandom.shrink()
+                }
+                // 向上滚动时展开FAB
+                else if (dy < 0) {
+                    if (!binding.fabRandom.isExtended) binding.fabRandom.extend()
+                }
+            }
+        })
+        
         // 观察收藏诗词
         viewModel.favoritePoems.observe(viewLifecycleOwner) { favoritePoems ->
             adapter.submitList(favoritePoems)
             updateUi(favoritePoems.isEmpty())
+        }
+        
+        // 设置随机按钮点击监听器
+        binding.fabRandom.setOnClickListener {
+            val randomPoem = viewModel.getRandomFavoritePoem()
+            if (randomPoem != null) {
+                navigateToPoemDetail(randomPoem)
+            } else {
+                Snackbar.make(binding.root, R.string.no_favorites, Snackbar.LENGTH_SHORT).show()
+            }
         }
         
         // 加载收藏诗词
