@@ -28,8 +28,8 @@ android {
         applicationId = "com.jerryz.poems"
         minSdk = 31
         targetSdk = 35
-        versionCode = 104
-        versionName = "1.0.4"
+        versionCode = 110
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "AI_BASE_URL", "\"${aiBaseUrl.escapeForBuildConfig()}\"")

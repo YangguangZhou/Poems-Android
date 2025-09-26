@@ -6,16 +6,22 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.pm.PackageInfoCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
+import com.jerryz.poems.BuildConfig
 import com.jerryz.poems.R
 import com.jerryz.poems.databinding.FragmentAboutBinding
 import com.google.android.material.snackbar.Snackbar
+import java.text.DateFormat
+import java.util.Date
+import java.util.Locale
 
 class AboutFragment : Fragment() {
 
@@ -43,15 +49,34 @@ class AboutFragment : Fragment() {
     }
 
     private fun loadAppVersion() {
+        val context = requireContext()
+        val packageManager = context.packageManager
+
         try {
-            val packageInfo = requireContext().packageManager.getPackageInfo(
-                requireContext().packageName, 0
-            )
-            val versionName = packageInfo.versionName
-            val versionCode = packageInfo.versionCode
-            binding.textVersion.text = getString(R.string.version_format, versionName, versionCode)
+            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(context.packageName, 0)
+            }
+
+            binding.textVersionName.text = packageInfo.versionName ?: getString(R.string.about_build_unknown)
+
+            val versionCode = PackageInfoCompat.getLongVersionCode(packageInfo)
+            binding.textVersionCode.text = versionCode.toString()
+
+            val buildType = BuildConfig.BUILD_TYPE.replaceFirstChar {
+                if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+            }
+            binding.textBuildType.text = buildType
+
+            val lastUpdate = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(packageInfo.lastUpdateTime))
+            binding.textLastUpdate.text = lastUpdate
         } catch (e: PackageManager.NameNotFoundException) {
-            binding.textVersion.text = getString(R.string.version_unknown)
+            binding.textVersionName.text = getString(R.string.about_build_unknown)
+            binding.textVersionCode.text = getString(R.string.about_build_unknown)
+            binding.textBuildType.text = getString(R.string.about_build_unknown)
+            binding.textLastUpdate.text = getString(R.string.about_build_unknown)
         }
     }
 
