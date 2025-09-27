@@ -5,7 +5,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.content.res.ColorStateList
-import android.graphics.Color
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -13,6 +12,9 @@ import androidx.navigation.fragment.findNavController
 import com.google.android.material.chip.Chip
 import com.google.android.material.color.MaterialColors
 import androidx.appcompat.widget.SearchView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import com.jerryz.poems.data.Poem
 import com.jerryz.poems.data.PoemRepository
 import com.jerryz.poems.databinding.FragmentSearchBinding
@@ -70,7 +72,14 @@ class SearchFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.searchAppBarLayout) { appBar, insets ->
+            val statusBars = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            appBar.updatePadding(top = statusBars.top)
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.searchAppBarLayout)
+
         // 初始化ViewModel
         val repository = PoemRepository.getInstance(requireContext())
         viewModel = ViewModelProvider(this, SearchViewModelFactory(repository)).get(SearchViewModel::class.java)

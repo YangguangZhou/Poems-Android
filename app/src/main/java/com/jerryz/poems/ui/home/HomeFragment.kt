@@ -5,6 +5,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -67,6 +70,13 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout) { appBar, insets ->
+            val statusBars = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            appBar.updatePadding(top = statusBars.top)
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.appBarLayout)
 
         val repository = PoemRepository.getInstance(requireContext())
         viewModel = ViewModelProvider(this, HomeViewModelFactory(repository))

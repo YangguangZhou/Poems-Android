@@ -12,8 +12,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.pm.PackageInfoCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import com.jerryz.poems.BuildConfig
 import com.jerryz.poems.R
@@ -40,8 +42,12 @@ class AboutFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.aboutTopAppBar.setNavigationIcon(R.drawable.ic_arrow_back)
-        binding.aboutTopAppBar.setNavigationOnClickListener { findNavController().navigateUp() }
+        ViewCompat.setOnApplyWindowInsetsListener(binding.aboutAppBarLayout) { appBar, insets ->
+            val statusBars = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            appBar.updatePadding(top = statusBars.top)
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.aboutAppBarLayout)
 
         loadAppVersion()
         loadAuthorImage()

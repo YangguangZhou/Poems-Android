@@ -12,18 +12,40 @@
         android:id="@+id/searchAppBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fitsSystemWindows="true"
+        android:elevation="0dp"
+        android:stateListAnimator="@null"
         android:background="?attr/colorSurface"
-        app:liftOnScroll="true"
-        app:liftOnScrollTargetViewId="@id/recycler_view">
+        app:statusBarForeground="@android:color/transparent">
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/searchTopAppBar"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:title="搜索"
-            app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge"
-            app:titleCentered="true" />
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.google.android.material.appbar.MaterialToolbar
+                android:id="@+id/searchTopAppBar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                app:title="搜索"
+                app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge"
+                app:titleCentered="true" />
+
+            <androidx.appcompat.widget.SearchView
+                android:id="@+id/search_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/search_background"
+                app:iconifiedByDefault="false"
+                app:searchIcon="@drawable/ic_search"
+                app:queryBackground="@android:color/transparent"
+                app:submitBackground="@android:color/transparent"
+                app:queryHint="@string/search_hint" />
+
+        </LinearLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -31,24 +53,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
-        <androidx.appcompat.widget.SearchView
-            android:id="@+id/search_view"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="16dp"
-            android:background="@drawable/search_background"
-            app:iconifiedByDefault="false"
-            app:searchIcon="@drawable/ic_search"
-            app:queryBackground="@android:color/transparent"
-            app:submitBackground="@android:color/transparent"
-            app:queryHint="@string/search_hint"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_view"
@@ -62,7 +66,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/search_view"
+            app:layout_constraintTop_toTopOf="parent"
             tools:itemCount="5"
             tools:listitem="@layout/item_poem"
             tools:visibility="visible" />
@@ -80,7 +84,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/search_view"
+            app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintWidth_max="480dp">
 
             <LinearLayout
@@ -121,7 +125,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/search_view">
+            app:layout_constraintTop_toTopOf="parent">
 
             <TextView
                 android:id="@+id/initial_state_title"

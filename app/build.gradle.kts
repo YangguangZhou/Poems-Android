@@ -1,10 +1,10 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.androidx.navigation.safeargs)
 }
-
-import java.util.Properties
 
 val aiProperties = Properties().apply {
     val envFile = rootProject.file("ai.env")
@@ -22,14 +22,14 @@ val aiModel = aiProperties.getProperty("AI_MODEL") ?: "qwen3-max-preview"
 
 android {
     namespace = "com.jerryz.poems"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.jerryz.poems"
         minSdk = 31
-        targetSdk = 35
-        versionCode = 110
-        versionName = "1.1.0"
+        targetSdk = 36
+        versionCode = 111
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "AI_BASE_URL", "\"${aiBaseUrl.escapeForBuildConfig()}\"")
@@ -61,7 +61,6 @@ android {
 
 configurations.all {
     resolutionStrategy {
-        // 根据你已有的 activity-compose 版本，强制所有 activity 库使用 1.10.1
         force("androidx.activity:activity:1.10.1")
         force("androidx.activity:activity-ktx:1.10.1")
     }

@@ -12,7 +12,10 @@
         android:id="@+id/favoriteAppBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fitsSystemWindows="true">
+        android:elevation="0dp"
+        android:stateListAnimator="@null"
+        android:background="?attr/colorSurface"
+        app:statusBarForeground="@android:color/transparent">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/favoriteTopAppBar"

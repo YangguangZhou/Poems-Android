@@ -5,6 +5,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
@@ -70,7 +73,14 @@ class FavoriteFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.favoriteAppBarLayout) { appBar, insets ->
+            val statusBars = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            appBar.updatePadding(top = statusBars.top)
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.favoriteAppBarLayout)
+
         // 初始化ViewModel
         val repository = PoemRepository.getInstance(requireContext())
         viewModel = ViewModelProvider(this, FavoriteViewModelFactory(repository)).get(FavoriteViewModel::class.java)
