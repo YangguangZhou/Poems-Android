@@ -53,6 +53,18 @@ class AiChatBottomSheetFragment : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // 添加预测性返回手势支持
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            requireActivity().onBackPressedDispatcher.addCallback(
+                viewLifecycleOwner,
+                object : androidx.activity.OnBackPressedCallback(true) {
+                    override fun handleOnBackPressed() {
+                        dismiss()
+                    }
+                }
+            )
+        }
+
         binding.topAppBar.title = getString(R.string.ai_features)
         binding.subtitle.text = title
 
@@ -84,16 +96,24 @@ class AiChatBottomSheetFragment : BottomSheetDialogFragment() {
             }
         }
 
-        binding.buttonSend.setOnClickListener {
+        binding.buttonSend.setOnClickListener { view ->
             if (vm.isStreaming.value == true) {
+                // 停止流式输出时使用轻微震动
+                com.jerryz.poems.util.AnimationUtils.performHapticFeedback(view, com.jerryz.poems.util.AnimationUtils.HapticType.LIGHT)
                 vm.stopStreaming()
             } else {
                 val text = binding.inputEditText.text?.toString() ?: ""
                 if (text.isNotBlank()) {
-                    vm.sendMessage(text)
-                    binding.inputEditText.setText("")
-                    hideKeyboard()
-                    autoScrollBottom = true
+                    // 发送消息时使用中等强度震动和动画
+                    com.jerryz.poems.util.AnimationUtils.animateButtonWithHaptic(view) {
+                        vm.sendMessage(text)
+                        binding.inputEditText.setText("")
+                        hideKeyboard()
+                        autoScrollBottom = true
+                    }
+                } else {
+                    // 空内容时的轻微提示
+                    com.jerryz.poems.util.AnimationUtils.performHapticFeedback(view, com.jerryz.poems.util.AnimationUtils.HapticType.LIGHT)
                 }
             }
         }
@@ -110,13 +130,29 @@ class AiChatBottomSheetFragment : BottomSheetDialogFragment() {
             }
         }
 
-        binding.topAppBar.setNavigationOnClickListener { dismiss() }
+        vm.outputCompletionTick.observe(viewLifecycleOwner) {
+            com.jerryz.poems.util.AnimationUtils.performHapticFeedback(
+                binding.recyclerView,
+                com.jerryz.poems.util.AnimationUtils.HapticType.LIGHT
+            )
+        }
+
+        binding.topAppBar.setNavigationOnClickListener { view ->
+            com.jerryz.poems.util.AnimationUtils.performHapticFeedback(view, com.jerryz.poems.util.AnimationUtils.HapticType.LIGHT)
+            dismiss()
+        }
 
         // Toggle buttons: 解读 / 默写
         showChat(true)
 
         binding.toggleButtonGroup.addOnButtonCheckedListener { group, checkedId, isChecked ->
             if (isChecked) {
+                // 为切换按钮添加震动反馈
+                val targetButton = group.findViewById<View>(checkedId)
+                targetButton?.let { view ->
+                    com.jerryz.poems.util.AnimationUtils.performHapticFeedback(view, com.jerryz.poems.util.AnimationUtils.HapticType.LIGHT)
+                }
+                
                 when (checkedId) {
                     R.id.button_insights -> showChat(true)
                     R.id.button_dictation -> showChat(false)
@@ -179,7 +215,23 @@ class AiChatBottomSheetFragment : BottomSheetDialogFragment() {
             onTextChanged = { index, text -> dictVm.updateUserInput(index, text) },
             onCheck = { index ->
                 hideKeyboard()
-                dictVm.checkAnswer(index)
+                val result = dictVm.checkAnswer(index)
+                // 根据检查结果立即触发震动反馈
+                when (result) {
+                    is CheckResult.Correct -> {
+                        com.jerryz.poems.util.AnimationUtils.performHapticFeedback(binding.recyclerViewDictation, com.jerryz.poems.util.AnimationUtils.HapticType.SUCCESS)
+                    }
+                    is CheckResult.Typos -> {
+                        com.jerryz.poems.util.AnimationUtils.performHapticFeedback(binding.recyclerViewDictation, com.jerryz.poems.util.AnimationUtils.HapticType.PARTIAL_ERROR)
+                    }
+                    is CheckResult.WholeWrong -> {
+                        com.jerryz.poems.util.AnimationUtils.performHapticFeedback(binding.recyclerViewDictation, com.jerryz.poems.util.AnimationUtils.HapticType.TRIPLE_ERROR)
+                    }
+                    null -> { /* 无结果时不震动 */ }
+                }
+            },
+            onCheckResult = { result, view ->
+                // 震动已移至 onCheck 回调中，这里保留以防需要其他处理
             }
         )
         val lm2 = LinearLayoutManager(requireContext())

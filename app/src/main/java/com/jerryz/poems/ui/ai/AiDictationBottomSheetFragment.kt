@@ -15,6 +15,7 @@ import com.google.android.material.shape.MaterialShapeDrawable
 import com.google.android.material.shape.ShapeAppearanceModel
 import com.jerryz.poems.R
 import com.jerryz.poems.databinding.FragmentAiDictationBottomSheetBinding
+import com.jerryz.poems.util.AnimationUtils
 
 class AiDictationBottomSheetFragment : BottomSheetDialogFragment() {
 
@@ -59,7 +60,17 @@ class AiDictationBottomSheetFragment : BottomSheetDialogFragment() {
             onTextChanged = { index, text -> vm.updateUserInput(index, text) },
             onCheck = { index ->
                 hideKeyboard()
-                vm.checkAnswer(index)
+                val result = vm.checkAnswer(index)
+                // 根据检查结果立即触发震动反馈
+                when (result) {
+                    is CheckResult.Correct -> AnimationUtils.performHapticFeedback(binding.recyclerView, AnimationUtils.HapticType.SUCCESS)
+                    is CheckResult.Typos -> AnimationUtils.performHapticFeedback(binding.recyclerView, AnimationUtils.HapticType.PARTIAL_ERROR)
+                    is CheckResult.WholeWrong -> AnimationUtils.performHapticFeedback(binding.recyclerView, AnimationUtils.HapticType.TRIPLE_ERROR)
+                    null -> { /* nothing */ }
+                }
+            },
+            onCheckResult = { result, view ->
+                // 震动已移至 onCheck 回调中，这里保留以防需要其他处理
             }
         )
         val lm = LinearLayoutManager(requireContext())

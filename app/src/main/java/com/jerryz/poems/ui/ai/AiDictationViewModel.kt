@@ -16,7 +16,8 @@ data class DictationQuestion(
     val answer: String,
     val explanation: String,
     var userInput: String = "",
-    var result: CheckResult? = null
+    var result: CheckResult? = null,
+    val revision: Long = 0L
 )
 
 sealed class CheckResult {
@@ -137,23 +138,27 @@ class AiDictationViewModel(
         q.userInput = text
     }
 
-    fun checkAnswer(index: Int) {
-        val list = _questions.value?.toMutableList() ?: return
-        if (index !in list.indices) return
+    fun checkAnswer(index: Int): CheckResult? {
+        val list = _questions.value?.toMutableList() ?: return null
+        if (index !in list.indices) return null
         val q = list[index]
         val ans = normalizeForCompare(q.answer)
         val user = normalizeForCompare(q.userInput)
 
+        val newRevision = System.nanoTime()
+
         if (user.isEmpty() || ans.isEmpty()) {
-            list[index] = q.copy(result = CheckResult.WholeWrong)
+            val result = CheckResult.WholeWrong
+            list[index] = q.copy(result = result, revision = newRevision)
             _questions.value = list
-            return
+            return result
         }
 
         if (ans == user) {
-            list[index] = q.copy(result = CheckResult.Correct)
+            val result = CheckResult.Correct
+            list[index] = q.copy(result = result, revision = newRevision)
             _questions.value = list
-            return
+            return result
         }
 
         val dist = editDistance(ans, user)
@@ -163,8 +168,9 @@ class AiDictationViewModel(
         } else {
             CheckResult.Typos(total = ans.length, wrongCount = dist, mismatchMask = emptyList())
         }
-        list[index] = q.copy(result = result)
+        list[index] = q.copy(result = result, revision = newRevision)
         _questions.value = list
+        return result
     }
 
     private fun editDistance(a: String, b: String): Int {

@@ -70,7 +70,7 @@ class PoemDetailViewModelFactory(
     }
 }
 
-class PoemDetailFragment : Fragment() {
+class PoemDetailFragment : com.jerryz.poems.ui.base.BaseFragment() {
 
     private var _binding: FragmentPoemDetailBinding? = null
     private val binding get() = _binding!!
@@ -85,13 +85,6 @@ class PoemDetailFragment : Fragment() {
 
     // 是否已显示过拼音提示
     private var hasShownPinyinGuide = false
-
-    private val onBackPressedCallback = object : OnBackPressedCallback(true) {
-        override fun handleOnBackPressed() {
-            // 使用Navigation组件进行返回
-            findNavController().navigateUp()
-        }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -108,23 +101,30 @@ class PoemDetailFragment : Fragment() {
         // Shared element transform for smoother card expand transition
         sharedElementEnterTransition = MaterialContainerTransform().apply {
             drawingViewId = R.id.nav_host_fragment
-            duration = 300
+            duration = 375L // 稍微增加持续时间，使动画更流畅
             scrimColor = Color.TRANSPARENT
+            fadeMode = com.google.android.material.transition.MaterialContainerTransform.FADE_MODE_THROUGH
+            fitMode = com.google.android.material.transition.MaterialContainerTransform.FIT_MODE_AUTO
+            // 使用更平滑的缓动函数
+            interpolator = android.view.animation.DecelerateInterpolator(1.2f)
             setAllContainerColors(
                 MaterialColors.getColor(requireContext(), com.google.android.material.R.attr.colorSurface, Color.WHITE)
             )
         }
         sharedElementReturnTransition = MaterialContainerTransform().apply {
             drawingViewId = R.id.nav_host_fragment
-            duration = 250
+            duration = 300L // 稍微增加返回动画持续时间
             scrimColor = Color.TRANSPARENT
+            fadeMode = com.google.android.material.transition.MaterialContainerTransform.FADE_MODE_THROUGH
+            fitMode = com.google.android.material.transition.MaterialContainerTransform.FIT_MODE_AUTO
+            // 返回动画使用稍微快一点的缓动
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
             setAllContainerColors(
                 MaterialColors.getColor(requireContext(), com.google.android.material.R.attr.colorSurface, Color.WHITE)
             )
         }
 
-        // 注册自定义返回处理
-        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, onBackPressedCallback)
+
 
         // 设置 Toolbar
         (requireActivity() as AppCompatActivity).setSupportActionBar(binding.toolbar)
@@ -175,6 +175,9 @@ class PoemDetailFragment : Fragment() {
                 // 设置 CollapsingToolbarLayout 标题
                 binding.collapsingToolbar.title = poem.title
 
+                // 内容加载完成后，以动画方式显示FAB按钮
+                showFabsWithAnimation()
+
                 // 如果是第一次显示，展示拼音引导提示
                 if (!hasShownPinyinGuide) {
                     showPinyinGuide()
@@ -185,27 +188,33 @@ class PoemDetailFragment : Fragment() {
                     binding.root,
                     "未找到诗词",
                     Snackbar.LENGTH_LONG
-                ).setAnchorView(binding.fabFavorite).show()
+                ).show()
             }
         }
 
         // 设置收藏按钮，使用 ExtendedFAB 的展开/收缩功能
-        binding.fabFavorite.setOnClickListener {
+        binding.fabFavorite.setOnClickListener { view ->
             currentPoem?.let {
-                viewModel.toggleFavorite(it.id)
+                // 收藏操作使用成功反馈
+                com.jerryz.poems.util.AnimationUtils.performHapticFeedback(view, com.jerryz.poems.util.AnimationUtils.HapticType.SUCCESS)
+                com.jerryz.poems.util.AnimationUtils.animateFabPress(view) {
+                    viewModel.toggleFavorite(it.id)
+                }
             }
         }
 
         // 设置 AI 按钮，打开底部聊天弹窗
-        binding.fabAi.setOnClickListener {
+        binding.fabAi.setOnClickListener { view ->
             currentPoem?.let { poem ->
-                AiChatBottomSheetFragment.newInstance(
-                    poemId = poem.id,
-                    title = poem.title,
-                    author = poem.author,
-                    content = poem.content.joinToString("\n"),
-                    translation = poem.translation.joinToString("\n")
-                ).show(parentFragmentManager, "AiChatBottomSheet")
+                com.jerryz.poems.util.AnimationUtils.animateFabWithHaptic(view) {
+                    AiChatBottomSheetFragment.newInstance(
+                        poemId = poem.id,
+                        title = poem.title,
+                        author = poem.author,
+                        content = poem.content.joinToString("\n"),
+                        translation = poem.translation.joinToString("\n")
+                    ).show(parentFragmentManager, "AiChatBottomSheet")
+                }
             }
         }
 
@@ -226,22 +235,29 @@ class PoemDetailFragment : Fragment() {
         )
 
         // 设置翻译开关
-        binding.switchTranslation.setOnCheckedChangeListener { _, isChecked ->
+        binding.switchTranslation.setOnCheckedChangeListener { view, isChecked ->
+            com.jerryz.poems.util.AnimationUtils.performHapticFeedback(view, com.jerryz.poems.util.AnimationUtils.HapticType.MEDIUM)
             showTranslations = isChecked
             currentPoem?.let { displayPoemContent(it) }
         }
 
-        // 设置字体大小调整按钮
-        binding.btnDecreaseTextSize.setOnClickListener {
-            viewModel.decreaseTextSize()
+        // 设置字体大小调整按钮，增加触觉反馈
+        binding.btnDecreaseTextSize.setOnClickListener { view ->
+            com.jerryz.poems.util.AnimationUtils.animateButtonWithHaptic(view) {
+                viewModel.decreaseTextSize()
+            }
         }
 
-        binding.btnIncreaseTextSize.setOnClickListener {
-            viewModel.increaseTextSize()
+        binding.btnIncreaseTextSize.setOnClickListener { view ->
+            com.jerryz.poems.util.AnimationUtils.animateButtonWithHaptic(view) {
+                viewModel.increaseTextSize()
+            }
         }
 
-        binding.btnResetTextSize.setOnClickListener {
-            viewModel.resetTextSize()
+        binding.btnResetTextSize.setOnClickListener { view ->
+            com.jerryz.poems.util.AnimationUtils.animateButtonWithHaptic(view) {
+                viewModel.resetTextSize()
+            }
         }
 
         // 观察字体大小变化
@@ -317,25 +333,34 @@ class PoemDetailFragment : Fragment() {
                 menuInflater.inflate(R.menu.poem_detail_menu, menu)
             }
 
+            override fun onPrepareMenu(menu: Menu) {
+                super.onPrepareMenu(menu)
+                // 确保菜单项始终可见且可用
+                menu.findItem(R.id.action_share)?.isVisible = true
+                menu.findItem(R.id.action_copy)?.isVisible = true
+            }
+
             override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
                 return when (menuItem.itemId) {
                     android.R.id.home -> {
-                        // 处理返回按钮点击
-                        onBackPressedCallback.handleOnBackPressed()
+                        // 处理返回按钮点击 - 使用Activity的返回处理，而不是直接调用navigateUp
+                        requireActivity().onBackPressedDispatcher.onBackPressed()
                         true
                     }
                     R.id.action_share -> {
+                        com.jerryz.poems.util.AnimationUtils.performHapticFeedback(requireView(), com.jerryz.poems.util.AnimationUtils.HapticType.LIGHT)
                         sharePoem()
                         true
                     }
                     R.id.action_copy -> {
+                        com.jerryz.poems.util.AnimationUtils.performHapticFeedback(requireView(), com.jerryz.poems.util.AnimationUtils.HapticType.SUCCESS)
                         copyPoemToClipboard()
                         true
                     }
                     else -> false
                 }
             }
-        }, viewLifecycleOwner, Lifecycle.State.RESUMED)
+        }, viewLifecycleOwner, Lifecycle.State.STARTED)
     }
 
     private fun displayPoem(poem: Poem) {
@@ -403,7 +428,7 @@ class PoemDetailFragment : Fragment() {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    setMargins(0, 0, 0, 24)  // 增加行间距
+                    setMargins(0, 0, 0, 32)  // 增大行间距从24dp增加到32dp
                 }
             }
 
@@ -445,6 +470,15 @@ class PoemDetailFragment : Fragment() {
                     val paddingHorizontal = resources.getDimensionPixelSize(R.dimen.translation_padding_horizontal)
                     val paddingVertical = resources.getDimensionPixelSize(R.dimen.translation_padding_vertical)
                     setPadding(paddingHorizontal, paddingVertical, paddingHorizontal, paddingVertical)
+                    
+                    // 设置翻译文本的上边距，与诗句内容拉开距离
+                    val layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        topMargin = resources.getDimensionPixelSize(R.dimen.translation_padding_vertical) * 2 // 16dp
+                    }
+                    setLayoutParams(layoutParams)
 
                     // 应用字体大小
                     textSize = currentTextSize
@@ -632,9 +666,6 @@ class PoemDetailFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
 
-        // 移除自定义返回处理
-        onBackPressedCallback.remove()
-
         // 关闭拼音弹窗
         pinyinPopupWindow?.dismiss()
         pinyinPopupWindow = null
@@ -648,6 +679,26 @@ class PoemDetailFragment : Fragment() {
         }
 
         _binding = null
+    }
+
+
+
+    /**
+     * 以动画方式显示FAB按钮
+     */
+    private fun showFabsWithAnimation() {
+        // 延迟显示，避免与共享元素动画冲突
+        view?.postDelayed({
+            if (isAdded && !isDetached) {
+                com.jerryz.poems.util.AnimationUtils.scaleIn(binding.fabFavorite, 300L)
+                // AI按钮稍晚一点显示，创造层次感
+                view?.postDelayed({
+                    if (isAdded && !isDetached) {
+                        com.jerryz.poems.util.AnimationUtils.scaleIn(binding.fabAi, 250L)
+                    }
+                }, 100L)
+            }
+        }, 200L)
     }
 
     /**

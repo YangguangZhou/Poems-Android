@@ -261,7 +261,10 @@ class TurnAdapter(
 
     private fun isErrorMessage(text: String): Boolean {
         val t = text.trim()
-        return t.startsWith("请求失败") || t.startsWith("API error") || t.startsWith("Error")
+        return t.startsWith("请求失败") ||
+            t.startsWith("API error", ignoreCase = true) ||
+            t.startsWith("Error", ignoreCase = true) ||
+            t.equals("500 Server Error", ignoreCase = true)
     }
 
     override fun onViewRecycled(holder: TurnVH) {

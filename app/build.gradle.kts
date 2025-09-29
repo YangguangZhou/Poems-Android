@@ -19,6 +19,7 @@ fun String.escapeForBuildConfig(): String =
 val aiBaseUrl = aiProperties.getProperty("AI_BASE_URL") ?: "https://one.jerryz.com.cn/v1"
 val aiApiKey = aiProperties.getProperty("AI_API_KEY") ?: ""
 val aiModel = aiProperties.getProperty("AI_MODEL") ?: "qwen3-max-preview"
+val aiBannedKeywords = aiProperties.getProperty("AI_BANNED_KEYWORDS") ?: "qwen,千问,通义千问,阿里,通义,阿里巴巴,alibaba"
 
 android {
     namespace = "com.jerryz.poems"
@@ -28,13 +29,14 @@ android {
         applicationId = "com.jerryz.poems"
         minSdk = 31
         targetSdk = 36
-        versionCode = 111
-        versionName = "1.1.1"
+        versionCode = 112
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "AI_BASE_URL", "\"${aiBaseUrl.escapeForBuildConfig()}\"")
         buildConfigField("String", "AI_API_KEY", "\"${aiApiKey.escapeForBuildConfig()}\"")
         buildConfigField("String", "AI_MODEL", "\"${aiModel.escapeForBuildConfig()}\"")
+    buildConfigField("String", "AI_BANNED_KEYWORDS", "\"${aiBannedKeywords.escapeForBuildConfig()}\"")
     }
 
     buildTypes {

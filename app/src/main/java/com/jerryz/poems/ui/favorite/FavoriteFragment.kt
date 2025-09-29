@@ -54,7 +54,7 @@ class FavoriteViewModel(private val repository: PoemRepository) : androidx.lifec
     }
 }
 
-class FavoriteFragment : Fragment() {
+class FavoriteFragment : com.jerryz.poems.ui.base.BaseFragment() {
 
     private var _binding: FragmentFavoriteBinding? = null
     private val binding get() = _binding!!
@@ -89,6 +89,9 @@ class FavoriteFragment : Fragment() {
         adapter = PoemAdapter { poem -> navigateToPoemDetail(poem) }
         binding.recyclerView.adapter = adapter
         
+        // 添加ItemDecoration来处理卡片间距
+        binding.recyclerView.addItemDecoration(com.jerryz.poems.ui.home.PoemItemDecoration())
+        
         // 添加滚动监听器以控制FAB的展开/收缩
         binding.recyclerView.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
@@ -112,11 +115,15 @@ class FavoriteFragment : Fragment() {
         }
         
         // 设置随机按钮点击监听器
-        binding.fabRandom.setOnClickListener {
+        binding.fabRandom.setOnClickListener { view ->
             val randomPoem = viewModel.getRandomFavoritePoem()
             if (randomPoem != null) {
-                navigateToPoemDetail(randomPoem)
+                com.jerryz.poems.util.AnimationUtils.animateFabWithHaptic(view) {
+                    navigateToPoemDetail(randomPoem)
+                }
             } else {
+                // 无收藏时使用较轻的震动反馈
+                com.jerryz.poems.util.AnimationUtils.performHapticFeedback(view, com.jerryz.poems.util.AnimationUtils.HapticType.LIGHT)
                 Snackbar.make(binding.root, R.string.no_favorites, Snackbar.LENGTH_SHORT).show()
             }
         }
@@ -132,6 +139,26 @@ class FavoriteFragment : Fragment() {
     
     private fun navigateToPoemDetail(poem: Poem) {
         val action = FavoriteFragmentDirections.actionFavoriteFragmentToPoemDetailFragment(poem.id)
+        
+        // 查找当前点击的卡片视图用于共享元素过渡
+        val layoutManager = binding.recyclerView.layoutManager as androidx.recyclerview.widget.LinearLayoutManager
+        val firstVisiblePosition = layoutManager.findFirstVisibleItemPosition()
+        val lastVisiblePosition = layoutManager.findLastVisibleItemPosition()
+        
+        // 在可见范围内查找匹配的卡片
+        for (i in firstVisiblePosition..lastVisiblePosition) {
+            val viewHolder = binding.recyclerView.findViewHolderForAdapterPosition(i)
+            if (viewHolder != null && adapter.currentList[i].id == poem.id) {
+                val cardView = viewHolder.itemView
+                val extras = androidx.navigation.fragment.FragmentNavigatorExtras(
+                    cardView to "poem_card_${poem.id}"
+                )
+                findNavController().navigate(action, extras)
+                return
+            }
+        }
+        
+        // 如果没找到对应的视图，则执行普通导航
         findNavController().navigate(action)
     }
 

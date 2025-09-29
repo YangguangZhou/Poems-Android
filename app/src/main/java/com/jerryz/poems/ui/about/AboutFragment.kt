@@ -20,12 +20,13 @@ import com.bumptech.glide.Glide
 import com.jerryz.poems.BuildConfig
 import com.jerryz.poems.R
 import com.jerryz.poems.databinding.FragmentAboutBinding
+import com.jerryz.poems.util.AnimationUtils
 import com.google.android.material.snackbar.Snackbar
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 
-class AboutFragment : Fragment() {
+class AboutFragment : com.jerryz.poems.ui.base.BaseFragment() {
 
     private var _binding: FragmentAboutBinding? = null
     private val binding get() = _binding!!
@@ -99,32 +100,46 @@ class AboutFragment : Fragment() {
 
     private fun setupClickListeners() {
         // Developer links
-        binding.buttonWebsite.setOnClickListener {
-            openUrl("https://jerryz.com.cn")
+        binding.buttonWebsite.setOnClickListener { view ->
+            AnimationUtils.animateButtonWithHaptic(view) {
+                openUrl("https://jerryz.com.cn")
+            }
         }
 
-        binding.buttonBlog.setOnClickListener {
-            openUrl("https://blog.jerryz.com.cn")
+        binding.buttonBlog.setOnClickListener { view ->
+            AnimationUtils.animateButtonWithHaptic(view) {
+                openUrl("https://blog.jerryz.com.cn")
+            }
         }
 
-        binding.buttonGitHub.setOnClickListener {
-            openUrl("https://github.com/YangguangZhou")
+        binding.buttonGitHub.setOnClickListener { view ->
+            AnimationUtils.animateButtonWithHaptic(view) {
+                openUrl("https://github.com/YangguangZhou")
+            }
         }
 
         // App links
-        binding.buttonWebVersion.setOnClickListener {
-            openUrl("https://poems.jerryz.com.cn")
+        binding.buttonWebVersion.setOnClickListener { view ->
+            AnimationUtils.animateButtonWithHaptic(view) {
+                openUrl("https://poems.jerryz.com.cn")
+            }
         }
 
         // Feedback options - Modified to copy to clipboard
-        binding.buttonEmail.setOnClickListener {
-            copyToClipboard("Email", "i@jerryz.com.cn")
-            showSuccessSnackbar(R.string.email_copied)
+        binding.buttonEmail.setOnClickListener { view ->
+            AnimationUtils.animateButtonWithHaptic(view) {
+                copyToClipboard("Email", "i@jerryz.com.cn")
+                AnimationUtils.performHapticFeedback(view, AnimationUtils.HapticType.SUCCESS)
+                showSuccessSnackbar(R.string.email_copied)
+            }
         }
 
-        binding.buttonQQ.setOnClickListener {
-            copyToClipboard("QQ", "2098412009")
-            showSuccessSnackbar(R.string.qq_copied)
+        binding.buttonQQ.setOnClickListener { view ->
+            AnimationUtils.animateButtonWithHaptic(view) {
+                copyToClipboard("QQ", "2098412009")
+                AnimationUtils.performHapticFeedback(view, AnimationUtils.HapticType.SUCCESS)
+                showSuccessSnackbar(R.string.qq_copied)
+            }
         }
     }
 

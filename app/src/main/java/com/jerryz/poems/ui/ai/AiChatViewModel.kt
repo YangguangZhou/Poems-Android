@@ -5,9 +5,11 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jerryz.poems.BuildConfig
 import okhttp3.Call
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -37,10 +39,85 @@ class AiChatViewModel(
     private val _isStreaming = MutableLiveData(false)
     val isStreaming: LiveData<Boolean> = _isStreaming
 
+    private val _outputCompletionTick = MutableLiveData<Long>()
+    val outputCompletionTick: LiveData<Long> = _outputCompletionTick
+    
+    // 打字机效果相关变量
+    private val typewriterBuffer = StringBuilder()
+    private var typewriterIndex = 0
+    private var typewriterRunnable: Runnable? = null
+    private var typewriterScheduled = false
+    private val typewriterDelay = 30L // 每个字符间隔时间（毫秒）
+
+    // 内容过滤关键词（忽略大小写、空格和特殊符号），从配置读取
+    private val bannedKeywordsNormalized = BuildConfig.AI_BANNED_KEYWORDS
+        .split(',')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .map { normalizeKeyword(it) }
+
     init {
         // load existing
         workingList += repository.loadHistory(poemId)
         publish()
+    }
+    
+    /**
+     * 检查内容是否包含禁止关键词
+     */
+    private fun containsBannedContent(text: String): Boolean {
+        if (bannedKeywordsNormalized.isEmpty()) return false
+        val normalizedText = normalizeKeyword(text)
+        return bannedKeywordsNormalized.any { normalizedText.contains(it) }
+    }
+
+    private fun normalizeKeyword(value: String): String {
+        return value.replace("\\s+".toRegex(), "")
+            .replace("[\\p{P}\\p{S}]".toRegex(), "")
+            .lowercase()
+    }
+    
+    /**
+     * 停止打字机效果
+     */
+    private fun stopTypewriter() {
+        typewriterRunnable?.let { uiHandler.removeCallbacks(it) }
+        typewriterRunnable = null
+        typewriterScheduled = false
+    }
+    
+    /**
+     * 开始打字机效果
+     */
+    private fun ensureTypewriterRunning() {
+        if (typewriterRunnable == null) {
+            typewriterRunnable = object : Runnable {
+                override fun run() {
+                    synchronized(workingList) {
+                        val lastIdx = workingList.lastIndex
+                        if (lastIdx >= 0 && workingList[lastIdx].role == Role.ASSISTANT && typewriterIndex < typewriterBuffer.length) {
+                            val displayText = typewriterBuffer.substring(0, typewriterIndex + 1)
+                            val last = workingList[lastIdx]
+                            workingList[lastIdx] = last.copy(content = displayText)
+                            typewriterIndex++
+
+                            requestUiUpdate()
+                        }
+                    }
+
+                    if (typewriterIndex < typewriterBuffer.length) {
+                        uiHandler.postDelayed(this, typewriterDelay)
+                    } else {
+                        typewriterScheduled = false
+                    }
+                }
+            }
+        }
+
+        if (!typewriterScheduled && typewriterIndex < typewriterBuffer.length) {
+            typewriterScheduled = true
+            uiHandler.post(typewriterRunnable!!)
+        }
     }
 
     fun deleteMessage(messageId: String) {
@@ -83,6 +160,11 @@ class AiChatViewModel(
         val placeholder = ChatMessage(role = Role.ASSISTANT, content = "")
         workingList += placeholder
         publish()
+        
+        // 重置打字机效果状态
+        stopTypewriter()
+    typewriterBuffer.clear()
+        typewriterIndex = 0
 
         viewModelScope.launch {
             val sys = """
@@ -177,14 +259,27 @@ $contextBlock
                                         val delta = c0.optJSONObject("delta")
                                         val token = delta?.optString("content") ?: c0.optJSONObject("message")?.optString("content")
                                         if (!token.isNullOrEmpty()) {
-                                            synchronized(workingList) {
-                                                val lastIdx = workingList.lastIndex
-                                                if (lastIdx >= 0 && workingList[lastIdx].role == Role.ASSISTANT) {
-                                                    val last = workingList[lastIdx]
-                                                    workingList[lastIdx] = last.copy(content = last.content + token)
+                                            typewriterBuffer.append(token)
+                                            
+                                            // 检查内容是否包含禁止关键词
+                                            if (containsBannedContent(typewriterBuffer.toString())) {
+                                                // 清空缓冲区并设置错误信息
+                                                stopTypewriter()
+                                                typewriterBuffer.clear()
+                                                typewriterIndex = 0
+                                                synchronized(workingList) {
+                                                    val lastIdx = workingList.lastIndex
+                                                    if (lastIdx >= 0 && workingList[lastIdx].role == Role.ASSISTANT) {
+                                                        val last = workingList[lastIdx]
+                                                        workingList[lastIdx] = last.copy(content = "500 Server Error")
+                                                    }
                                                 }
+                                                requestUiUpdate()
+                                                currentCall?.cancel()
+                                                return@use
                                             }
-                                            requestUiUpdate()
+                                            
+                                            ensureTypewriterRunning()
                                         }
                                     }
                                 } catch (_: Exception) { }
@@ -193,6 +288,20 @@ $contextBlock
                     }
                 } catch (e: Exception) {
                     if (currentCall?.isCanceled() != true) {
+                        // 如果缓冲区有内容，先显示出来
+                        if (typewriterBuffer.isNotEmpty()) {
+                            stopTypewriter()
+                            synchronized(workingList) {
+                                val lastIdx = workingList.lastIndex
+                                if (lastIdx >= 0 && workingList[lastIdx].role == Role.ASSISTANT) {
+                                    val last = workingList[lastIdx]
+                                    workingList[lastIdx] = last.copy(content = typewriterBuffer.toString())
+                                }
+                            }
+                            typewriterBuffer.clear()
+                            typewriterIndex = 0
+                            requestUiUpdate()
+                        }
                         synchronized(workingList) {
                             val lastIdx = workingList.lastIndex
                             if (lastIdx >= 0 && workingList[lastIdx].role == Role.ASSISTANT) {
@@ -203,12 +312,28 @@ $contextBlock
                         requestUiUpdate()
                     }
                 } finally {
+                    // 不停止打字机效果，让它自然完成
                     currentCall = null
                     _isStreaming.postValue(false)
-                    repository.saveHistory(poemId, workingList)
-                    requestUiUpdate()
+                    // 等待打字机完成后再保存
+                    val remaining = (typewriterBuffer.length - typewriterIndex).coerceAtLeast(0)
+                    uiHandler.postDelayed({
+                        repository.saveHistory(poemId, workingList)
+                        requestUiUpdate()
+                        notifyOutputCompletedIfNeeded()
+                    }, remaining * typewriterDelay + 120)
                 }
             }
+        }
+    }
+
+    private fun notifyOutputCompletedIfNeeded() {
+        val shouldNotify = synchronized(workingList) {
+            val last = workingList.lastOrNull()
+            last?.role == Role.ASSISTANT && last.content.isNotBlank()
+        }
+        if (shouldNotify) {
+            _outputCompletionTick.value = SystemClock.uptimeMillis()
         }
     }
 
@@ -224,6 +349,9 @@ $contextBlock
 
     fun stopStreaming() {
         currentCall?.cancel()
+        if (typewriterBuffer.isNotEmpty() && typewriterIndex < typewriterBuffer.length) {
+            ensureTypewriterRunning()
+        }
     }
 
     private fun publish() {

@@ -12,4 +12,6 @@
     <dimen name="popup_elevation">8dp</dimen>
     <dimen name="popup_vertical_offset">8dp</dimen>
     <dimen name="popup_extra_vertical_offset">1dp</dimen>
+    <!-- Chip 最小高度，避免布局跳动 -->
+    <dimen name="chip_min_height">32dp</dimen>
 </resources>

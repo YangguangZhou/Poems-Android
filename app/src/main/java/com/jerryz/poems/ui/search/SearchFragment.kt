@@ -19,6 +19,7 @@ import com.jerryz.poems.data.Poem
 import com.jerryz.poems.data.PoemRepository
 import com.jerryz.poems.databinding.FragmentSearchBinding
 import com.jerryz.poems.ui.home.PoemAdapter
+import com.jerryz.poems.util.AnimationUtils
 
 // SearchViewModelFactory 定义
 class SearchViewModelFactory(private val repository: PoemRepository) : ViewModelProvider.Factory {
@@ -53,7 +54,7 @@ class SearchViewModel(private val repository: PoemRepository) : androidx.lifecyc
     }
 }
 
-class SearchFragment : Fragment() {
+class SearchFragment : com.jerryz.poems.ui.base.BaseFragment() {
 
     private var _binding: FragmentSearchBinding? = null
     private val binding get() = _binding!!
@@ -88,11 +89,14 @@ class SearchFragment : Fragment() {
         adapter = PoemAdapter { poem -> navigateToPoemDetail(poem) }
         binding.recyclerView.adapter = adapter
         
+        // 添加ItemDecoration来处理卡片间距
+        binding.recyclerView.addItemDecoration(com.jerryz.poems.ui.home.PoemItemDecoration())
+        
         // 使用 AppCompat SearchView（原样式），输入即搜索
         binding.searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
-                // 支持提交，但不强制；主要用变更回调实时搜索
                 query?.let { viewModel.searchPoems(it) }
+                AnimationUtils.performHapticFeedback(binding.searchView, AnimationUtils.HapticType.MEDIUM)
                 return true
             }
 
@@ -127,6 +131,33 @@ class SearchFragment : Fragment() {
         viewModel.loadAllTags()
         viewModel.allTags.observe(viewLifecycleOwner) { tags ->
             displayTagChips(tags)
+        }
+
+        binding.searchView.setOnQueryTextFocusChangeListener { view, hasFocus ->
+            if (hasFocus && view != null) {
+                AnimationUtils.performHapticFeedback(view, AnimationUtils.HapticType.LIGHT)
+            }
+        }
+
+        binding.searchView.post {
+            val closeButton = binding.searchView.findViewById<View>(androidx.appcompat.R.id.search_close_btn)
+            closeButton?.setOnClickListener { closeView ->
+                AnimationUtils.performHapticFeedback(closeView, AnimationUtils.HapticType.LIGHT)
+                binding.searchView.setQuery("", false)
+                binding.searchView.clearFocus()
+            }
+
+            val goButton = binding.searchView.findViewById<View>(androidx.appcompat.R.id.search_go_btn)
+            goButton?.setOnClickListener { goView ->
+                AnimationUtils.performHapticFeedback(goView, AnimationUtils.HapticType.MEDIUM)
+                viewModel.searchPoems(binding.searchView.query?.toString().orEmpty())
+            }
+
+            val searchButton = binding.searchView.findViewById<View>(androidx.appcompat.R.id.search_mag_icon)
+            searchButton?.setOnClickListener { iconView ->
+                AnimationUtils.performHapticFeedback(iconView, AnimationUtils.HapticType.LIGHT)
+                binding.searchView.requestFocus()
+            }
         }
     }
     
@@ -170,9 +201,10 @@ class SearchFragment : Fragment() {
                 chipBackgroundColor = ColorStateList.valueOf(bg)
                 setTextColor(fg)
 
-                setOnClickListener {
-                    // 直接以该标签进行搜索
-                    binding.searchView.setQuery(tag, false)
+                setOnClickListener { view ->
+                    AnimationUtils.animateButtonWithHaptic(view) {
+                        binding.searchView.setQuery(tag, false)
+                    }
                 }
             }
             group.addView(chip)
@@ -185,6 +217,26 @@ class SearchFragment : Fragment() {
     
     private fun navigateToPoemDetail(poem: Poem) {
         val action = SearchFragmentDirections.actionSearchFragmentToPoemDetailFragment(poem.id)
+        
+        // 查找当前点击的卡片视图用于共享元素过渡
+        val layoutManager = binding.recyclerView.layoutManager as androidx.recyclerview.widget.LinearLayoutManager
+        val firstVisiblePosition = layoutManager.findFirstVisibleItemPosition()
+        val lastVisiblePosition = layoutManager.findLastVisibleItemPosition()
+        
+        // 在可见范围内查找匹配的卡片
+        for (i in firstVisiblePosition..lastVisiblePosition) {
+            val viewHolder = binding.recyclerView.findViewHolderForAdapterPosition(i)
+            if (viewHolder != null && adapter.currentList[i].id == poem.id) {
+                val cardView = viewHolder.itemView
+                val extras = androidx.navigation.fragment.FragmentNavigatorExtras(
+                    cardView to "poem_card_${poem.id}"
+                )
+                findNavController().navigate(action, extras)
+                return
+            }
+        }
+        
+        // 如果没找到对应的视图，则执行普通导航
         findNavController().navigate(action)
     }
 

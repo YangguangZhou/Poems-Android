@@ -12,7 +12,11 @@
         tools:layout="@layout/fragment_home">
         <action
             android:id="@+id/action_homeFragment_to_poemDetailFragment"
-            app:destination="@id/poemDetailFragment" />
+            app:destination="@id/poemDetailFragment"
+            app:enterAnim="@anim/fade_in_scale"
+            app:exitAnim="@anim/fade_out_scale"
+            app:popEnterAnim="@anim/fade_in_scale"
+            app:popExitAnim="@anim/slide_out_right" />
     </fragment>
 
     <fragment
@@ -22,7 +26,11 @@
         tools:layout="@layout/fragment_favorite">
         <action
             android:id="@+id/action_favoriteFragment_to_poemDetailFragment"
-            app:destination="@id/poemDetailFragment" />
+            app:destination="@id/poemDetailFragment"
+            app:enterAnim="@anim/fade_in_scale"
+            app:exitAnim="@anim/fade_out_scale"
+            app:popEnterAnim="@anim/fade_in_scale"
+            app:popExitAnim="@anim/slide_out_right" />
     </fragment>
 
     <fragment
@@ -32,7 +40,11 @@
         tools:layout="@layout/fragment_search">
         <action
             android:id="@+id/action_searchFragment_to_poemDetailFragment"
-            app:destination="@id/poemDetailFragment" />
+            app:destination="@id/poemDetailFragment"
+            app:enterAnim="@anim/fade_in_scale"
+            app:exitAnim="@anim/fade_out_scale"
+            app:popEnterAnim="@anim/fade_in_scale"
+            app:popExitAnim="@anim/slide_out_right" />
     </fragment>
 
     <fragment

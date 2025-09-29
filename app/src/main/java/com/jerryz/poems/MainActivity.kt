@@ -3,6 +3,7 @@ package com.jerryz.poems
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.window.OnBackInvokedDispatcher
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -69,26 +70,8 @@ class MainActivity : AppCompatActivity(), NavController.OnDestinationChangedList
         window.navigationBarColor = Color.TRANSPARENT;
         window.statusBarColor = Color.TRANSPARENT
 
-        // 添加预见式返回手势支持
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
-            if (Build.VERSION.SDK_INT >= 34) { // Android 14+
-                onBackInvokedDispatcher.registerOnBackInvokedCallback(
-                    OnBackInvokedDispatcher.PRIORITY_DEFAULT
-                ) {
-                    // 通过导航控制器处理返回逻辑
-                    if (!navController.popBackStack()) {
-                        finish()
-                    }
-                }
-            } else {
-                // Android 13 的处理方式
-                onBackPressedDispatcher.addCallback(this) {
-                    if (!navController.popBackStack()) {
-                        finish()
-                    }
-                }
-            }
-        }
+        // 移除MainActivity层的返回处理，完全由BaseFragment处理
+        // 这样可以确保预测性返回手势在所有Fragment中都能正常工作
         window.isNavigationBarContrastEnforced = false
     }
 
@@ -131,7 +114,7 @@ class MainActivity : AppCompatActivity(), NavController.OnDestinationChangedList
     ) {
         // 根据当前目标决定是否显示底部导航栏
         val shouldShowBottomNav = destination.id in topLevelDestinations
-        binding.bottomNavigation.isVisible = shouldShowBottomNav
+        animateBottomNavigationVisibility(shouldShowBottomNav)
 
         // 如果当前是详情页面，更新系统UI配置
         if (destination.id == R.id.poemDetailFragment) {
@@ -140,6 +123,25 @@ class MainActivity : AppCompatActivity(), NavController.OnDestinationChangedList
         } else if (!shouldShowBottomNav) {
             // 其他非顶层页面，恢复正常显示
             WindowCompat.setDecorFitsSystemWindows(window, true)
+        }
+    }
+
+    private fun animateBottomNavigationVisibility(show: Boolean) {
+        val bottomNav = binding.bottomNavigation
+        val currentVisibility = bottomNav.visibility
+
+        // 如果已经是目标状态，则不执行动画
+        if ((currentVisibility == View.VISIBLE && show) || (currentVisibility == View.GONE && !show)) {
+            return
+        }
+
+        // 取消之前的动画
+        bottomNav.clearAnimation()
+
+        if (show) {
+            com.jerryz.poems.util.AnimationUtils.slideInFromBottom(bottomNav, 300L)
+        } else {
+            com.jerryz.poems.util.AnimationUtils.slideOutToBottom(bottomNav, 250L)
         }
     }
 

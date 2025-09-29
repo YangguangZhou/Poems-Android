@@ -7,8 +7,10 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.chip.Chip
+import com.jerryz.poems.R
 import com.jerryz.poems.data.Poem
 import com.jerryz.poems.databinding.ItemPoemBinding
+import com.jerryz.poems.util.AnimationUtils
 
 class PoemAdapter(private val onItemClick: (Poem) -> Unit) :
     ListAdapter<Poem, PoemAdapter.PoemViewHolder>(PoemDiffCallback()) {
@@ -31,10 +33,16 @@ class PoemAdapter(private val onItemClick: (Poem) -> Unit) :
         RecyclerView.ViewHolder(binding.root) {
 
         init {
-            binding.root.setOnClickListener {
+            // 为卡片添加触摸反馈效果
+            binding.root.setOnClickListener { view ->
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
-                    onItemClick(getItem(position))
+                    AnimationUtils.animateButtonWithHaptic(view) {
+                        val poem = getItem(position)
+                        // 设置共享元素过渡名称
+                        androidx.core.view.ViewCompat.setTransitionName(binding.root, "poem_card_${poem.id}")
+                        onItemClick(poem)
+                    }
                 }
             }
         }
@@ -50,27 +58,53 @@ class PoemAdapter(private val onItemClick: (Poem) -> Unit) :
             // 设置收藏图标
             binding.iconFavorite.visibility = if (poem.isFavorite) View.VISIBLE else View.GONE
 
-            // 显示标签
-            binding.chipGroupTags.removeAllViews()
+            // 设置共享元素过渡名称，确保每个卡片都有唯一标识
+            androidx.core.view.ViewCompat.setTransitionName(binding.root, "poem_card_${poem.id}")
 
-            // 最多显示3个标签，避免过多标签导致UI混乱
+            // 优化标签显示，避免跳动 - 使用更稳定的标签更新策略
             val tagsToShow = poem.tags.take(3)
+            
+            // 只有在标签内容真正改变时才重新设置
+            val currentTags = (0 until binding.chipGroupTags.childCount).map { 
+                (binding.chipGroupTags.getChildAt(it) as? Chip)?.text?.toString() ?: ""
+            }
+            
+            if (currentTags != tagsToShow) {
+                // 使用更平滑的更新方式，先设置为不可见再更新
+                binding.chipGroupTags.alpha = 0f
+                binding.chipGroupTags.removeAllViews()
+                
+                tagsToShow.forEach { tag ->
+                    val chip = Chip(binding.root.context).apply {
+                        text = tag
+                        isCheckable = false
+                        isClickable = false
+                        chipStrokeWidth = 0f
 
-            tagsToShow.forEach { tag ->
-                val chip = Chip(binding.root.context).apply {
-                    text = tag
-                    isCheckable = false
-                    isClickable = false
-                    chipStrokeWidth = 0f
+                        // 使用主题适配的颜色
+                        val bg = com.google.android.material.color.MaterialColors.getColor(
+                            context, 
+                            com.google.android.material.R.attr.colorSecondaryContainer, 
+                            0
+                        )
+                        val fg = com.google.android.material.color.MaterialColors.getColor(
+                            context, 
+                            com.google.android.material.R.attr.colorOnSecondaryContainer, 
+                            0
+                        )
+                        chipBackgroundColor = android.content.res.ColorStateList.valueOf(bg)
+                        setTextColor(fg)
 
-                    // 使用更明显的背景色，采用 secondaryContainer 颜色
-                    setChipBackgroundColorResource(com.google.android.material.R.color.m3_sys_color_dynamic_light_secondary_container)
-                    // 使用匹配的文本颜色确保可读性
-                    setTextColor(context.getColor(com.google.android.material.R.color.m3_sys_color_dynamic_light_on_secondary_container))
-
-                    textSize = 12f
+                        textSize = 12f
+                    }
+                    binding.chipGroupTags.addView(chip)
                 }
-                binding.chipGroupTags.addView(chip)
+                
+                // 添加完成后淡入显示，减少视觉跳动
+                binding.chipGroupTags.animate()
+                    .alpha(1f)
+                    .setDuration(150)
+                    .start()
             }
         }
     }

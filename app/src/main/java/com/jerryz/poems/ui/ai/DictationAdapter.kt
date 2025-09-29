@@ -18,7 +18,8 @@ import com.jerryz.poems.R
 
 class DictationAdapter(
     private val onTextChanged: (index: Int, text: String) -> Unit,
-    private val onCheck: (index: Int) -> Unit
+    private val onCheck: (index: Int) -> Unit,
+    private val onCheckResult: (CheckResult?, View) -> Unit
 ) : ListAdapter<DictationQuestion, DictationAdapter.VH>(DIFF) {
 
     companion object {
@@ -37,7 +38,7 @@ class DictationAdapter(
     }
 
     override fun onBindViewHolder(holder: VH, position: Int) {
-        holder.bind(getItem(position), position, onTextChanged, onCheck)
+        holder.bind(getItem(position), position, onTextChanged, onCheck, onCheckResult)
     }
 
     class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -56,7 +57,8 @@ class DictationAdapter(
             item: DictationQuestion,
             position: Int,
             onTextChanged: (index: Int, text: String) -> Unit,
-            onCheck: (index: Int) -> Unit
+            onCheck: (index: Int) -> Unit,
+            onCheckResult: (CheckResult?, View) -> Unit
         ) {
             textPrompt.text = item.prompt
             // Show underline mask before checking
@@ -80,7 +82,12 @@ class DictationAdapter(
             }
             input.addTextChangedListener(watcher)
 
-            buttonCheck.setOnClickListener { onCheck(position) }
+            buttonCheck.setOnClickListener { view ->
+                // 检查时添加轻微震动和动画
+                com.jerryz.poems.util.AnimationUtils.animateButtonWithHaptic(view) {
+                    onCheck(position)
+                }
+            }
 
             // Result
             when (val r = item.result) {
@@ -98,6 +105,10 @@ class DictationAdapter(
                     textResult.setTextColor(
                         MaterialColors.getColor(itemView.context, com.google.android.material.R.attr.colorPrimary, 0)
                     )
+                    // 添加成功动画效果
+                    com.jerryz.poems.util.AnimationUtils.animateSuccess(textResult)
+                    // 触发检查结果回调
+                    onCheckResult(r, textResult)
                     textExplanation.visibility = View.VISIBLE
                     textExplanation.text = itemView.context.getString(R.string.explanation) + "：" + item.explanation
                     // Show colored correct answer on underline
@@ -112,6 +123,10 @@ class DictationAdapter(
                     textResult.setTextColor(
                         MaterialColors.getColor(itemView.context, com.google.android.material.R.attr.colorSecondary, 0)
                     )
+                    // 添加部分错误动画效果
+                    com.jerryz.poems.util.AnimationUtils.animatePartialError(textResult)
+                    // 触发检查结果回调
+                    onCheckResult(r, textResult)
                     textExplanation.visibility = View.VISIBLE
                     textExplanation.text = itemView.context.getString(R.string.explanation) + "：" + item.explanation
                     // Show colored correct answer on underline; plain answer below
@@ -127,6 +142,10 @@ class DictationAdapter(
                     textResult.setTextColor(
                         MaterialColors.getColor(itemView.context, com.google.android.material.R.attr.colorError, 0)
                     )
+                    // 添加错误动画效果
+                    com.jerryz.poems.util.AnimationUtils.animateError(textResult)
+                    // 触发检查结果回调
+                    onCheckResult(r, textResult)
                     textExplanation.visibility = View.VISIBLE
                     textExplanation.text = itemView.context.getString(R.string.explanation) + "：" + item.explanation
                     // Show colored correct answer on underline; plain answer below

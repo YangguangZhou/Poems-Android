@@ -187,7 +187,7 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- AI 功能按钮，默认展开，位于收藏按钮上方 -->
+    <!-- AI 功能按钮，初始隐藏，加载完成后显示 -->
     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
         android:id="@+id/fab_ai"
         android:layout_width="wrap_content"
@@ -198,13 +198,14 @@
         android:contentDescription="@string/ai_mode"
         android:text="@string/ai_mode"
         android:textColor="?attr/colorOnSecondaryContainer"
+        android:visibility="invisible"
         app:backgroundTint="?attr/colorSecondaryContainer"
         app:icon="@drawable/ic_sparkles"
         app:iconPadding="8dp"
         app:iconTint="?attr/colorOnSecondaryContainer"
         app:shapeAppearance="@style/ShapeAppearance.Material3.Corner.Medium" />
 
-    <!-- 收藏按钮，默认展开 -->
+    <!-- 收藏按钮，初始隐藏，加载完成后显示 -->
     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
         android:id="@+id/fab_favorite"
         style="@style/Widget.App.ExtendedFloatingActionButton.Favorite"
@@ -214,6 +215,7 @@
         android:layout_margin="@dimen/fab_margin"
         android:contentDescription="@string/favorite"
         android:text="@string/favorite"
+        android:visibility="invisible"
         app:icon="@drawable/ic_favorite_outline"
         app:iconPadding="8dp"
         app:shapeAppearance="@style/ShapeAppearance.Material3.Corner.Medium" />
