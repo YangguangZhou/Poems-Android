@@ -119,10 +119,12 @@ class AiDictationViewModel(
                     _questions.value = old
                     _error.value = "生成失败，请重试"
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 // Keep previous content on error
                 _questions.value = old
-                _error.value = "请求失败，请检查网络后重试"
+                val fallback = if (e is IllegalStateException) "输出为空，请重试" else "请检查网络后重试"
+                val sanitized = AiErrorFormatter.sanitize(e.message, fallback)
+                _error.value = "请求失败：$sanitized"
             } finally {
                 _loading.value = false
             }

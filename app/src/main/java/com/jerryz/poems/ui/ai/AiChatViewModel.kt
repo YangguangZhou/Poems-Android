@@ -237,6 +237,8 @@ $contextBlock
             }
 
             withContext(Dispatchers.IO) {
+                var hasMeaningfulContent = false
+                var canceledByUser = false
                 try {
                     val call = api.newChatCompletionStreamCall(messages = msgs)
                     currentCall = call
@@ -245,7 +247,10 @@ $contextBlock
                         if (!resp.isSuccessful) throw RuntimeException("API error: ${resp.code}")
                         val source = resp.body?.source() ?: return@use
                         while (true) {
-                            if (call.isCanceled()) break
+                            if (call.isCanceled()) {
+                                canceledByUser = true
+                                break
+                            }
                             val line = source.readUtf8Line() ?: break
                             if (line.isBlank()) continue
                             if (line.startsWith("data:")) {
@@ -259,6 +264,9 @@ $contextBlock
                                         val delta = c0.optJSONObject("delta")
                                         val token = delta?.optString("content") ?: c0.optJSONObject("message")?.optString("content")
                                         if (!token.isNullOrEmpty()) {
+                                            if (token.isNotBlank()) {
+                                                hasMeaningfulContent = true
+                                            }
                                             typewriterBuffer.append(token)
                                             
                                             // 检查内容是否包含禁止关键词
@@ -306,15 +314,34 @@ $contextBlock
                             val lastIdx = workingList.lastIndex
                             if (lastIdx >= 0 && workingList[lastIdx].role == Role.ASSISTANT) {
                                 val last = workingList[lastIdx]
-                                workingList[lastIdx] = last.copy(content = "请求失败：${e.message ?: "未知错误"}")
+                                val sanitized = AiErrorFormatter.sanitize(e.message)
+                                workingList[lastIdx] = last.copy(content = "请求失败：$sanitized")
                             }
                         }
                         requestUiUpdate()
                     }
                 } finally {
-                    // 不停止打字机效果，让它自然完成
+                    // 默认不停止打字机效果，让它自然完成
                     currentCall = null
                     _isStreaming.postValue(false)
+                    if (!canceledByUser && !hasMeaningfulContent) {
+                        var updated = false
+                        synchronized(workingList) {
+                            val lastIdx = workingList.lastIndex
+                            if (lastIdx >= 0 && workingList[lastIdx].role == Role.ASSISTANT && workingList[lastIdx].content.isBlank()) {
+                                val last = workingList[lastIdx]
+                                val sanitized = AiErrorFormatter.sanitize(null, "输出为空，请重试")
+                                workingList[lastIdx] = last.copy(content = "请求失败：$sanitized")
+                                updated = true
+                            }
+                        }
+                        if (updated) {
+                            stopTypewriter()
+                            typewriterBuffer.clear()
+                            typewriterIndex = 0
+                            requestUiUpdate()
+                        }
+                    }
                     // 等待打字机完成后再保存
                     val remaining = (typewriterBuffer.length - typewriterIndex).coerceAtLeast(0)
                     uiHandler.postDelayed({

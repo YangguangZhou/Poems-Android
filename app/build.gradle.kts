@@ -20,6 +20,7 @@ val aiBaseUrl = aiProperties.getProperty("AI_BASE_URL") ?: "https://one.jerryz.c
 val aiApiKey = aiProperties.getProperty("AI_API_KEY") ?: ""
 val aiModel = aiProperties.getProperty("AI_MODEL") ?: "qwen3-max-preview"
 val aiBannedKeywords = aiProperties.getProperty("AI_BANNED_KEYWORDS") ?: "qwen,千问,通义千问,阿里,通义,阿里巴巴,alibaba"
+val aiErrorFilterDomain = aiProperties.getProperty("AI_ERROR_FILTER_DOMAIN") ?: "one.jerryz.com.cn"
 
 android {
     namespace = "com.jerryz.poems"
@@ -29,14 +30,15 @@ android {
         applicationId = "com.jerryz.poems"
         minSdk = 31
         targetSdk = 36
-        versionCode = 112
-        versionName = "1.1.2"
+        versionCode = 113
+        versionName = "1.1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "AI_BASE_URL", "\"${aiBaseUrl.escapeForBuildConfig()}\"")
         buildConfigField("String", "AI_API_KEY", "\"${aiApiKey.escapeForBuildConfig()}\"")
         buildConfigField("String", "AI_MODEL", "\"${aiModel.escapeForBuildConfig()}\"")
-    buildConfigField("String", "AI_BANNED_KEYWORDS", "\"${aiBannedKeywords.escapeForBuildConfig()}\"")
+        buildConfigField("String", "AI_BANNED_KEYWORDS", "\"${aiBannedKeywords.escapeForBuildConfig()}\"")
+        buildConfigField("String", "AI_ERROR_FILTER_DOMAIN", "\"${aiErrorFilterDomain.escapeForBuildConfig()}\"")
     }
 
     buildTypes {

@@ -44,9 +44,11 @@ class AiApiClient(
             val resText = resp.body?.string() ?: ""
             val obj = JSONObject(resText)
             val choices = obj.optJSONArray("choices") ?: JSONArray()
-            if (choices.length() == 0) return ""
+            if (choices.length() == 0) throw IllegalStateException("AI输出为空，请重试")
             val msg = choices.getJSONObject(0).optJSONObject("message")
-            return msg?.optString("content") ?: ""
+            val content = msg?.optString("content").orEmpty()
+            if (content.isBlank()) throw IllegalStateException("AI输出为空，请重试")
+            return content
         }
     }
 
