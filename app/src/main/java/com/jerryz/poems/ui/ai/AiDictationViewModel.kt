@@ -62,8 +62,15 @@ class AiDictationViewModel(
         val old = _questions.value.orEmpty()
         viewModelScope.launch {
             val sys = """
-你是资深语文教师，擅长命制高考语文诗词默写题。你的任务：基于给定诗词，命制严格、规范、具有区分度的默写题。
-仅输出纯JSON，不要任何解释、注释或Markdown。
+你是一位经验丰富的高中语文教师和高考命题专家。你的核心任务是根据提供的古诗词，设计出高质量、符合最新高考标准的默写题。
+命题原则：
+1.  **考察深度**：题目不仅是简单的记忆复现，更要检验学生对诗词内容、主旨情感、艺术手法的深层理解。
+2.  **情境创设**：多设计情境应用型题目，引导学生在理解的基础上填写诗句。
+3.  **规范严谨**：题干表述清晰、无歧义、无暗示，答案必须与原文完全一致。
+4.  **富有区分度**：题目应能有效筛选出对诗词有不同理解层次的学生。
+
+输出要求：
+严格按照要求，仅输出纯JSON数组，不包含任何Markdown标记、解释或额外文本。
             """.trimIndent()
 
             val contextBlock = buildString {
@@ -86,15 +93,28 @@ class AiDictationViewModel(
             } else "无"
 
             val user = buildString {
-                appendLine("请根据上述诗词，按高考语文风格生成${count}道规范的默写题。")
-                appendLine("命题类型包含但不限于：补写下句/上句、根据描述写出句子、补齐名句关键词等；题干不得泄露答案。")
-                appendLine("JSON 数组中每题包含以下字段：")
-                appendLine("question：题干（不包含答案，语言明确精炼）；也不需要包含填空的横线。")
-                appendLine("answer：标准答案，需与原文逐字一致，保留原标点；")
-                appendLine("explanation：解析（20-40字），解释选择这一句的原因。")
-                appendLine("若可行，请尽量避开与以下已出过的答案重复的句子或考点：")
+                appendLine("请根据上述诗词信息，严格遵循高考语文的命题风格和难度，生成 ${count} 道全新的默写题。")
+
+                appendLine("\n**核心要求**：")
+                appendLine("- **聚焦理解**：优先考察对诗句内涵、意象、情感、哲理的理解。题干应创设具体情境，引导学生写出相应诗句。")
+                appendLine("- **题型多样**：根据概括性描述写出完整诗句。鼓励从以下角度命题：")
+                appendLine("    - 主题意象型：根据特定意象、情感主题写出相关诗句（如：表达离别之情、描写边塞风光等）")
+                appendLine("    - 手法鉴赏型：根据修辞手法、表现手法提示默写（如：运用比喻、借景抒情等）")
+                appendLine("    - 哲理启示型：根据诗句蕴含的哲理或启示写出句子（如：说明事物发展规律等）")
+                appendLine("    - 情境应用型：结合现实生活场景引用诗句（如：为景区题词、写宣传语等）")
+                appendLine("- **题干精炼**：题干语言必须明确、精炼，不得包含答案的任何字词。")
+
+                appendLine("\n**JSON 格式**：")
+                appendLine("数组中每题包含以下字段：")
+                appendLine("- `question`: 题干，不含横线。")
+                appendLine("- `answer`: 标准答案，与原文逐字、逐标点一致。")
+                appendLine("- `explanation`: 命题解析（20-60字），简述答案为何是该句。")
+
+                appendLine("\n**避免重复**：")
+                appendLine("请确保新题目的考点和答案句子，与以下已出过的内容不重复：")
                 appendLine(prevBlock)
-                appendLine("只输出纯JSON数组，不要额外文字。")
+
+                appendLine("\n请直接输出纯JSON数组。")
             }.trim()
 
             try {
